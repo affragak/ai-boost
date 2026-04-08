@@ -115,12 +115,15 @@ MISE_GITHUB_TOKEN=ghp_...    # GitHub token (avoids rate-limiting for mise)
 
 ### Step 5 — Build and start
 
-If you pulled the pre-built image in the tip above, run:
+**Option A — use the pre-built image from GHCR (recommended, no clone needed):**
 ```bash
-make up
+make pull && make up
+# or, without cloning the repo at all:
+podman build --format docker -t ghcr.io/affragak/ai-boost:latest \
+  https://github.com/affragak/ai-boost.git
 ```
 
-Otherwise build locally (takes 20–30 min on first run — downloads CUDA base image, open-webui, and the mise toolchain):
+**Option B — build locally** (20–30 min on first run — downloads CUDA base, open-webui, mise toolchain):
 ```bash
 make rebuild
 ```

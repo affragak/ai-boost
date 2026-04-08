@@ -37,49 +37,65 @@ done
 
 [[ -z "$ADMIN_EMAIL" || -z "$ADMIN_PASSWORD" || -z "$USER_NAME" || -z "$USER_EMAIL" || -z "$USER_PASSWORD" ]] && usage
 
+# Export all values — Python reads from os.environ to avoid shell quoting issues
+export _CU_ADMIN_EMAIL="$ADMIN_EMAIL"
+export _CU_ADMIN_PASSWORD="$ADMIN_PASSWORD"
+export _CU_USER_NAME="$USER_NAME"
+export _CU_USER_EMAIL="$USER_EMAIL"
+export _CU_USER_PASSWORD="$USER_PASSWORD"
+export _CU_URL="$OPENWEBUI_URL"
+
+python3 - <<'PYEOF'
+import json, os, sys, urllib.request, urllib.error
+
+url          = os.environ["_CU_URL"]
+admin_email  = os.environ["_CU_ADMIN_EMAIL"]
+admin_pass   = os.environ["_CU_ADMIN_PASSWORD"]
+user_name    = os.environ["_CU_USER_NAME"]
+user_email   = os.environ["_CU_USER_EMAIL"]
+user_pass    = os.environ["_CU_USER_PASSWORD"]
+
+def request(method, path, data=None, token=None):
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(
+        f"{url}{path}", method=method,
+        data=json.dumps(data).encode() if data else None,
+        headers=headers,
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        print(f"Error: HTTP {e.code} — {body}", file=sys.stderr)
+        sys.exit(1)
+
 # Authenticate as admin
-echo "Authenticating as admin..."
-TOKEN=$(curl -sf -X POST "$OPENWEBUI_URL/api/v1/auths/signin" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\": \"$ADMIN_EMAIL\", \"password\": \"$ADMIN_PASSWORD\"}" \
-  | python3 -c "import sys, json; print(json.load(sys.stdin)['token'])") \
-  || die "Admin authentication failed. Check credentials and that Open WebUI is running."
+print("Authenticating as admin...")
+auth = request("POST", "/api/v1/auths/signin",
+               {"email": admin_email, "password": admin_pass})
+token = auth["token"]
 
 # Create user
-echo "Creating user '$USER_NAME' ($USER_EMAIL)..."
-USER=$(curl -sf -X POST "$OPENWEBUI_URL/api/v1/auths/add" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d "{\"name\": \"$USER_NAME\", \"email\": \"$USER_EMAIL\", \"password\": \"$USER_PASSWORD\", \"role\": \"user\"}") \
-  || die "Failed to create user. The email may already be registered."
+print(f"Creating user '{user_name}' ({user_email})...")
+user = request("POST", "/api/v1/auths/add",
+               {"name": user_name, "email": user_email,
+                "password": user_pass, "role": "user"}, token)
+print(f"  Created: {user['name']} ({user['email']}) role={user['role']}")
 
-echo "$USER" | python3 -c "
-import sys, json
-u = json.load(sys.stdin)
-print(f\"  Created: {u['name']} ({u['email']}) role={u['role']}\")
-"
+# Grant access to all models
+print("Granting model access...")
+models_resp = request("GET", "/api/v1/models", token=token)
+models = models_resp if isinstance(models_resp, list) else models_resp.get("data", [])
+for m in models:
+    mid = m.get("id")
+    if not mid:
+        continue
+    request("POST", "/api/v1/models/model/access/update",
+            {"id": mid, "access_control": None, "access_grants": []}, token)
+    print(f"  Model access set: {mid}")
 
-# Grant access to all available models
-echo "Fetching available models..."
-MODELS=$(curl -sf "$OPENWEBUI_URL/api/v1/models" \
-  -H "Authorization: Bearer $TOKEN") \
-  || die "Failed to fetch models."
-
-USER_ID=$(echo "$USER" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
-
-echo "$MODELS" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-models = data if isinstance(data, list) else data.get('data', [])
-ids = [m['id'] for m in models if m.get('id')]
-print('\n'.join(ids))
-" | while IFS= read -r model_id; do
-  result=$(curl -sf -X POST "$OPENWEBUI_URL/api/v1/models/model/access/update" \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer $TOKEN" \
-    -d "{\"id\": \"$model_id\", \"access_control\": null}" 2>/dev/null) || true
-  echo "  Model access set: $model_id"
-done
-
-echo ""
-echo "Done. User '$USER_NAME' can now log in at $OPENWEBUI_URL"
+print(f"\nDone. User '{user_name}' can now log in at {url}")
+PYEOF

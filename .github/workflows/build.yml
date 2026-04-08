@@ -54,7 +54,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # GitHub Actions layer cache — dramatically speeds up rebuilds
-          # when only late-stage layers change (e.g. a script update)
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Store build cache as a separate tag in GHCR instead of GHA cache
+          # storage. This avoids the 10 GB GHA cache limit (a CUDA + pip image
+          # fills it quickly) while keeping layer reuse across builds.
+          cache-from: type=registry,ref=ghcr.io/affragak/ai-boost:buildcache
+          cache-to: type=registry,ref=ghcr.io/affragak/ai-boost:buildcache,mode=min,compression=zstd,image-manifest=true,oci-mediatypes=true

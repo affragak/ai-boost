@@ -69,7 +69,7 @@ All state lives on the host via bind mounts — rebuilding the image never loses
 podman exec -it ai-boost pull-models
 ```
 
-The `pull-models` script pulls any models listed in it, skipping ones already downloaded.
+The `pull-models` script pulls any models listed in it, skipping ones already downloaded. If `OPENWEBUI_ADMIN_EMAIL` and `OPENWEBUI_ADMIN_PASSWORD` are set, it automatically syncs model access grants so all users can see newly pulled models.
 
 | Model | Size | Purpose |
 |-------|------|---------|
@@ -84,19 +84,9 @@ The `pull-models` script pulls any models listed in it, skipping ones already do
 
 ---
 
-## Creating Users
+## Managing Users & Model Access
 
-```bash
-scripts/create-user \
-  --admin-email admin@example.com \
-  --admin-password yourpassword \
-  --name "Alice" \
-  --email alice@example.com \
-  --password alicepassword
-```
-
-The script authenticates as admin, creates the user with role `user`, and grants access to all available models. Run it from inside the container:
-
+**Create a user:**
 ```bash
 podman exec -it ai-boost create-user \
   --admin-email admin@example.com \
@@ -106,11 +96,24 @@ podman exec -it ai-boost create-user \
   --password alicepassword
 ```
 
+**Re-grant model access** (run after pulling new models without creating a user):
+```bash
+podman exec -it ai-boost \
+  -e OPENWEBUI_ADMIN_EMAIL=admin@example.com \
+  -e OPENWEBUI_ADMIN_PASSWORD=yourpassword \
+  fix-model-access
+```
+
+> **Note:** newly pulled models are invisible to regular users until `fix-model-access` or `create-user` is run. See [notes/open-webui-model-access.md](notes/open-webui-model-access.md) for details.
+
 ---
 
-
+## Common Operations
 
 ```bash
+# Full health check (services, APIs, disk)
+podman exec -it ai-boost healthcheck
+
 # Check service health
 podman exec -it ai-boost sudo supervisorctl status
 
@@ -120,6 +123,9 @@ podman exec -it ai-boost bash
 # Tail logs
 podman exec -it ai-boost tail -f /var/log/open-webui.log
 podman exec -it ai-boost tail -f /var/log/ollama.err
+
+# Backup Open WebUI data and Cloudflare credentials
+podman exec -it ai-boost backup
 
 # Stop
 podman-compose down

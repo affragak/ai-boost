@@ -1,0 +1,56 @@
+#!/bin/bash
+set -e
+
+# Backs up Open WebUI data and Cloudflared credentials to a timestamped tarball.
+# Ollama model weights are excluded — they can be re-pulled with pull-models.
+#
+# Usage (inside container):
+#   backup                         # saves to ~/backups/
+#   backup /path/to/output/dir
+#
+# Restore:
+#   tar -xzf ai-boost-backup-<timestamp>.tar.gz -C /
+
+OUTPUT_DIR="${1:-/home/ubuntu/backups}"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+ARCHIVE="$OUTPUT_DIR/ai-boost-backup-$TIMESTAMP.tar.gz"
+
+SOURCES=(
+  "/home/ubuntu/.local/share/open-webui"   # users, chats, settings, uploaded files
+  "/home/ubuntu/.cloudflared"              # tunnel credentials
+)
+
+mkdir -p "$OUTPUT_DIR"
+
+echo "=== ai-boost backup ==="
+echo "Timestamp : $TIMESTAMP"
+echo "Output    : $ARCHIVE"
+echo ""
+
+# Filter to existing sources only
+existing=()
+for src in "${SOURCES[@]}"; do
+  if [[ -d "$src" ]]; then
+    existing+=("$src")
+    size=$(du -sh "$src" 2>/dev/null | cut -f1)
+    echo "  Including: $src  ($size)"
+  else
+    echo "  Skipping : $src  (not found)"
+  fi
+done
+
+if [[ ${#existing[@]} -eq 0 ]]; then
+  echo "Nothing to back up." >&2
+  exit 1
+fi
+
+echo ""
+echo "Creating archive..."
+tar -czf "$ARCHIVE" "${existing[@]}"
+
+size=$(du -sh "$ARCHIVE" | cut -f1)
+echo "Done — $ARCHIVE  ($size)"
+echo ""
+echo "To restore on a fresh container:"
+echo "  podman cp $ARCHIVE ai-boost:/tmp/"
+echo "  podman exec -it ai-boost tar -xzf /tmp/$(basename "$ARCHIVE") -C /"

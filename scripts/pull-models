@@ -36,3 +36,10 @@ for model in "${MODELS[@]}"; do
 done
 
 echo "All models ready."
+
+# If admin credentials are available, sync model access grants so all
+# Open WebUI users can see the newly pulled models.
+if [[ -n "$OPENWEBUI_ADMIN_EMAIL" && -n "$OPENWEBUI_ADMIN_PASSWORD" ]]; then
+  echo "Syncing model access grants..."
+  fix-model-access
+fi

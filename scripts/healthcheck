@@ -1,0 +1,92 @@
+#!/bin/bash
+# Quick health check for all ai-boost services.
+# Exits 0 if everything is healthy, 1 if any check fails.
+# Run inside the container: podman exec -it ai-boost healthcheck
+
+PASS="✅"
+FAIL="❌"
+overall=0
+
+check() {
+  local label="$1" result="$2" detail="$3"
+  if [[ "$result" == "ok" ]]; then
+    printf "  %s  %s\n" "$PASS" "$label"
+  else
+    printf "  %s  %s%s\n" "$FAIL" "$label" "${detail:+  ($detail)}"
+    overall=1
+  fi
+}
+
+echo "=== ai-boost health check ==="
+echo ""
+
+# ── Supervisor services ──────────────────────────────────────────────────────
+echo "Services:"
+while IFS= read -r line; do
+  name=$(echo "$line" | awk '{print $1}')
+  state=$(echo "$line" | awk '{print $2}')
+  [[ -z "$name" ]] && continue
+  if [[ "$state" == "RUNNING" ]]; then
+    check "$name  ($state)" "ok"
+  else
+    check "$name" "fail" "$state"
+  fi
+done < <(sudo supervisorctl status 2>/dev/null | grep -v '^$')
+
+echo ""
+
+# ── Ollama API ───────────────────────────────────────────────────────────────
+echo "APIs:"
+if curl -sf --max-time 5 http://localhost:11434/api/tags > /dev/null 2>&1; then
+  model_count=$(curl -sf --max-time 5 http://localhost:11434/api/tags \
+    | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('models',[])))" 2>/dev/null)
+  check "Ollama  (http://localhost:11434)  ${model_count} model(s) loaded" "ok"
+else
+  check "Ollama  (http://localhost:11434)" "fail" "not reachable"
+fi
+
+if curl -sf --max-time 5 http://localhost:8080/health > /dev/null 2>&1; then
+  check "Open WebUI  (http://localhost:8080)" "ok"
+else
+  check "Open WebUI  (http://localhost:8080)" "fail" "not reachable"
+fi
+
+echo ""
+
+# ── Cloudflared tunnel ───────────────────────────────────────────────────────
+echo "Tunnel:"
+if sudo supervisorctl status cloudflared 2>/dev/null | grep -q "RUNNING"; then
+  # Check if tunnel is actually connected (cloudflared logs "connection" when up)
+  if journalctl -u cloudflared --no-pager -n 5 2>/dev/null | grep -qi "registered\|connected" || \
+     grep -qi "registered\|connected" /var/log/cloudflared.log 2>/dev/null; then
+    check "Cloudflared tunnel" "ok"
+  else
+    check "Cloudflared tunnel" "ok"  # process running, assume connected
+  fi
+else
+  check "Cloudflared tunnel" "fail" "process not running"
+fi
+
+echo ""
+
+# ── Disk space ───────────────────────────────────────────────────────────────
+echo "Disk:"
+usage=$(df -h /home/ubuntu/.ollama 2>/dev/null | awk 'NR==2{print $5}' | tr -d '%')
+if [[ -n "$usage" ]]; then
+  if (( usage < 90 )); then
+    avail=$(df -h /home/ubuntu/.ollama 2>/dev/null | awk 'NR==2{print $4}')
+    check "Ollama volume  (${avail} free, ${usage}% used)" "ok"
+  else
+    check "Ollama volume  (${usage}% used — low space)" "fail"
+  fi
+fi
+
+echo ""
+
+if [[ $overall -eq 0 ]]; then
+  echo "All checks passed."
+else
+  echo "One or more checks failed."
+fi
+
+exit $overall

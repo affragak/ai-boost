@@ -105,12 +105,28 @@ podman exec -it ai-boost sudo supervisorctl status
 # Pull LLM models
 podman exec -it ai-boost pull-models
 
+# Full health check (services, APIs, disk)
+podman exec -it ai-boost healthcheck
+
 # Shell access
 podman exec -it ai-boost bash
 
 # Tail logs
 podman exec -it ai-boost tail -f /var/log/open-webui.log
 podman exec -it ai-boost tail -f /var/log/ollama.err
+
+# Create a new Open WebUI user
+podman exec -it ai-boost create-user \
+  --admin-email admin@example.com --admin-password yourpassword \
+  --name "Alice" --email alice@example.com --password alicepassword
+
+# Re-grant model access after pulling new models
+podman exec -e OPENWEBUI_ADMIN_EMAIL=admin@example.com \
+            -e OPENWEBUI_ADMIN_PASSWORD=yourpassword \
+            ai-boost fix-model-access
+
+# Backup Open WebUI data and Cloudflare credentials
+podman exec -it ai-boost backup
 
 # Rebuild and restart
 podman-compose up --build -d

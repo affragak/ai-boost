@@ -39,6 +39,15 @@ RUN chmod +x /usr/local/bin/pull-models
 COPY scripts/create-user /usr/local/bin/create-user
 RUN chmod +x /usr/local/bin/create-user
 
+COPY scripts/fix-model-access /usr/local/bin/fix-model-access
+RUN chmod +x /usr/local/bin/fix-model-access
+
+COPY scripts/healthcheck /usr/local/bin/healthcheck
+RUN chmod +x /usr/local/bin/healthcheck
+
+COPY scripts/backup /usr/local/bin/backup
+RUN chmod +x /usr/local/bin/backup
+
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

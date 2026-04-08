@@ -1,0 +1,74 @@
+#!/bin/bash
+set -e
+
+# Grants wildcard read access to every model currently registered in Open WebUI.
+# Run this after pulling new models so regular users can see them.
+#
+# Usage:
+#   OPENWEBUI_ADMIN_EMAIL=admin@example.com \
+#   OPENWEBUI_ADMIN_PASSWORD=secret \
+#   fix-model-access
+
+OPENWEBUI_URL="http://localhost:8080"
+
+if [[ -z "$OPENWEBUI_ADMIN_EMAIL" || -z "$OPENWEBUI_ADMIN_PASSWORD" ]]; then
+  echo "Usage: OPENWEBUI_ADMIN_EMAIL=<email> OPENWEBUI_ADMIN_PASSWORD=<password> fix-model-access" >&2
+  exit 1
+fi
+
+export _FA_EMAIL="$OPENWEBUI_ADMIN_EMAIL"
+export _FA_PASSWORD="$OPENWEBUI_ADMIN_PASSWORD"
+export _FA_URL="$OPENWEBUI_URL"
+
+python3 - <<'PYEOF'
+import json, os, sys, urllib.request, urllib.error
+
+url      = os.environ["_FA_URL"]
+email    = os.environ["_FA_EMAIL"]
+password = os.environ["_FA_PASSWORD"]
+
+def request(method, path, data=None, token=None):
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(
+        f"{url}{path}", method=method,
+        data=json.dumps(data).encode() if data else None,
+        headers=headers,
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        print(f"  HTTP {e.code}: {e.read().decode()[:200]}", file=sys.stderr)
+        return None
+
+auth = request("POST", "/api/v1/auths/signin", {"email": email, "password": password})
+if not auth or not auth.get("token"):
+    print("Error: authentication failed. Check OPENWEBUI_ADMIN_EMAIL / OPENWEBUI_ADMIN_PASSWORD.", file=sys.stderr)
+    sys.exit(1)
+token = auth["token"]
+
+models_resp = request("GET", "/api/v1/models", token=token)
+models = models_resp if isinstance(models_resp, list) else models_resp.get("data", [])
+
+if not models:
+    print("No models found.")
+    sys.exit(0)
+
+public_read = [{"principal_type": "user", "principal_id": "*", "permission": "read"}]
+ok = 0
+for m in models:
+    mid = m.get("id")
+    if not mid:
+        continue
+    result = request("POST", "/api/v1/models/model/access/update",
+                     {"id": mid, "access_grants": public_read}, token)
+    if result:
+        print(f"  [OK] {mid}")
+        ok += 1
+    else:
+        print(f"  [FAIL] {mid}")
+
+print(f"\n{ok}/{len(models)} models now accessible to all users.")
+PYEOF

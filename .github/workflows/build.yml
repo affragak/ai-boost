@@ -1,0 +1,60 @@
+name: Build & Push
+
+# Rebuild and push the container image to GHCR on every push to main
+# that touches image-affecting files.  Doc-only pushes are skipped to
+# avoid burning the 2 000 free GitHub Actions minutes/month on a 30-min
+# build that downloads the CUDA base image + open-webui.
+on:
+  push:
+    branches: [main]
+    paths:
+      - Containerfile
+      - scripts/**
+      - supervisord/**
+      - mise.toml
+      - .github/workflows/build.yml
+
+jobs:
+  build:
+    name: Build and push to GHCR
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write   # required to push to ghcr.io
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/affragak/ai-boost
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Containerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GitHub Actions layer cache — dramatically speeds up rebuilds
+          # when only late-stage layers change (e.g. a script update)
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

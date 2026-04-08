@@ -8,6 +8,14 @@ Bundles a local LLM inference server ([Ollama](https://ollama.com)), a web chat 
 
 ## Getting Started
 
+> **Prefer a faster start?** A pre-built image is published to the GitHub Container Registry on every relevant push to `main`. Skip the 20–30 min local build with:
+> ```bash
+> podman pull ghcr.io/affragak/ai-boost:latest
+> ```
+> The image is public — no login required. Then jump straight to Step 3 (you still need to create the data directories and set up your `.env`).
+
+---
+
 ### Step 1 — Install host prerequisites
 
 **Podman and podman-compose** (Ubuntu/Debian):
@@ -106,11 +114,15 @@ MISE_GITHUB_TOKEN=ghp_...    # GitHub token (avoids rate-limiting for mise)
 
 ### Step 5 — Build and start
 
+If you pulled the pre-built image in the tip above, run:
+```bash
+make up
+```
+
+Otherwise build locally (takes 20–30 min on first run — downloads CUDA base image, open-webui, and the mise toolchain):
 ```bash
 make rebuild
 ```
-
-This stops any existing container, rebuilds the image, and starts it detached. First build takes several minutes (downloading CUDA base image, installing Open WebUI, pulling toolchains).
 
 Check everything came up:
 ```bash

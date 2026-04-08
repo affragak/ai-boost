@@ -14,7 +14,10 @@ ai-boost/
 ├── Makefile                    # Single source of truth for all common operations
 ├── mise.toml                   # Developer toolchain versions (node, python, gh, uv)
 ├── notes/                      # Operational notes and technical deep-dives
-├── .github/workflows/lint.yml  # hadolint CI — runs on every push
+├── .github/
+│   ├── workflows/lint.yml      # hadolint CI — runs on every push
+│   ├── workflows/build.yml     # Build & push to GHCR on image-affecting changes
+│   └── dependabot.yml          # Auto-update GitHub Actions versions weekly
 ├── scripts/
 │   ├── entrypoint.sh           # Container startup: chown volumes, exec supervisord
 │   ├── pull-models             # Pull curated Ollama model set; syncs access grants
@@ -239,6 +242,29 @@ uv      = "latest"
 ```
 
 mise shims are prepended to `PATH` so `node`, `python`, `uv`, `gh` resolve to the mise-managed versions. Claude Code is installed globally into the mise-managed Node via `npm install -g @anthropic-ai/claude-code`.
+
+---
+
+## CI/CD
+
+### Lint (`.github/workflows/lint.yml`)
+Runs [hadolint](https://github.com/hadolint/hadolint) on the `Containerfile` on every push and pull request that touches `Containerfile` or the workflow file itself. Catches common Dockerfile mistakes (missing `--no-install-recommends`, unset pipefail, etc.). Several rules are intentionally ignored — see the workflow for comments explaining each.
+
+### Build & Push (`.github/workflows/build.yml`)
+Builds the container image with Docker BuildKit and pushes to the GitHub Container Registry (`ghcr.io/affragak/ai-boost`) on every push to `main` that touches image-affecting files (`Containerfile`, `scripts/`, `supervisord/`, `mise.toml`). Doc-only pushes are skipped to avoid burning CI minutes on a ~30 min build.
+
+Tags published:
+- `latest` — always points to the most recent `main` build
+- `<short-sha>` — e.g. `ghcr.io/affragak/ai-boost:3ee080c`
+
+Uses GitHub Actions layer cache (`type=gha`) so rebuilds after small changes (e.g. a script edit) complete in minutes instead of 30+.
+
+**First-time package visibility:** the first push creates a private package. Go to `https://github.com/affragak?tab=packages`, open `ai-boost`, → Package settings → Change visibility → Public.
+
+### Dependabot (`.github/dependabot.yml`)
+Opens automatic PRs when GitHub Actions versions are outdated (weekly schedule). Covers `actions/checkout`, `docker/login-action`, `docker/build-push-action`, etc.
+
+> **Limitation:** Dependabot's `docker` ecosystem only reads `FROM` lines in files literally named `Dockerfile`. It cannot track `ARG`-pinned versions (`OLLAMA_VERSION`, `open-webui==x.y.z`, `uv:x.y.z`). Use `make update` for those.
 
 ---
 

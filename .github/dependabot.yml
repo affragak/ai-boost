@@ -1,0 +1,16 @@
+version: 2
+
+updates:
+  # Automatically open PRs when GitHub Actions versions are outdated.
+  # Covers: actions/checkout, docker/login-action, docker/build-push-action, etc.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+
+  # Note — Dependabot's docker ecosystem only reads FROM lines in files
+  # literally named "Dockerfile".  It cannot read our "Containerfile" or
+  # track ARG-pinned versions (ollama, open-webui, uv).
+  # Use `make update` to check those versions manually.

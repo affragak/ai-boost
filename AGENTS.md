@@ -28,7 +28,10 @@ ai-boost/
 ├── Makefile                    # Single source of truth for all common operations
 ├── mise.toml                   # Toolchain versions (node LTS, python 3.13, gh, uv)
 ├── ARCHITECTURE.md             # Detailed architecture reference
-├── .github/workflows/lint.yml  # hadolint CI — runs on every push
+├── .github/
+│   ├── workflows/lint.yml      # hadolint CI — runs on every push
+│   ├── workflows/build.yml     # Build & push to GHCR on image-affecting changes
+│   └── dependabot.yml          # Auto-update GitHub Actions versions weekly
 ├── notes/                      # Operational notes and technical deep-dives
 ├── scripts/
 │   ├── entrypoint.sh           # Container startup: chown volumes, exec supervisord

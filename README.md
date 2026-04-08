@@ -6,28 +6,130 @@ Bundles a local LLM inference server ([Ollama](https://ollama.com)), a web chat 
 
 ---
 
-## Requirements
+## Getting Started
 
-- [Podman](https://podman.io/) + [podman-compose](https://github.com/containers/podman-compose)
-- [nvidia-container-toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) (for GPU passthrough via CDI)
-- A [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/) configured in `~/.cloudflared`
+### Step 1 — Install host prerequisites
+
+**Podman and podman-compose** (Ubuntu/Debian):
+```bash
+sudo apt install podman podman-compose
+```
+
+**NVIDIA Container Toolkit** (for GPU passthrough):
+
+Follow the [official install guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html), then generate the CDI device spec that Podman uses:
+```bash
+sudo nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+```
+
+Verify with:
+```bash
+nvidia-ctk cdi list        # should list nvidia.com/gpu=0 etc.
+podman run --rm --device nvidia.com/gpu=all ubuntu nvidia-smi
+```
 
 ---
 
-## Quick Start
+### Step 2 — Set up a Cloudflare Tunnel
+
+> Skip this step if you don't need a public URL — Cloudflared will simply fail to connect but everything else still works.
 
 ```bash
-# 1. Set required environment variables
-export ANTHROPIC_API_KEY=sk-...
-export MISE_GITHUB_TOKEN=ghp_...
-export WEBUI_SECRET_KEY=$(openssl rand -hex 32)
-export CLOUDFLARED_TUNNEL_ID=<your-tunnel-uuid>
+# Authenticate with your Cloudflare account
+cloudflared tunnel login
 
-# 2. Build and start
+# Create the tunnel (pick any name)
+cloudflared tunnel create ai-boost
+
+# Note the tunnel UUID printed — you'll need it in Step 4
+cloudflared tunnel list
+
+# Create a DNS route so your domain points to the tunnel
+cloudflared tunnel route dns ai-boost chat.yourdomain.com
+```
+
+The credentials JSON file is saved automatically to `~/.cloudflared/`. You also need a `~/.cloudflared/config.yml`:
+```yaml
+tunnel: <your-tunnel-uuid>
+credentials-file: /home/ubuntu/.cloudflared/<your-tunnel-uuid>.json
+
+ingress:
+  - hostname: chat.yourdomain.com
+    service: http://localhost:8080
+  - service: http_status:404
+```
+
+---
+
+### Step 3 — Create host data directories
+
+All persistent data lives on the host via bind mounts. Create the directories before first run:
+
+```bash
+mkdir -p ~/.ollama ~/.cloudflared ~/.local/share/open-webui
+```
+
+Fix ownership on the Open WebUI directory so it's writable by the container user:
+```bash
+podman unshare chown -R 1000:1000 ~/.local/share/open-webui
+```
+
+> This uses `podman unshare` — a rootless Podman command that enters the user namespace and applies the correct UID mapping. You only need to run it once (or after manually copying data in).
+
+---
+
+### Step 4 — Configure environment variables
+
+Set these in your shell (add to `~/.bashrc` or `~/.zshrc` to persist across sessions):
+
+```bash
+export ANTHROPIC_API_KEY=sk-...           # Claude API key (for Claude Code)
+export MISE_GITHUB_TOKEN=ghp_...          # GitHub token (for mise tool downloads)
+export WEBUI_SECRET_KEY=$(openssl rand -hex 32)  # JWT signing key — generate once, keep it
+export CLOUDFLARED_TUNNEL_ID=<uuid>       # from: cloudflared tunnel list
+```
+
+> **Keep `WEBUI_SECRET_KEY` consistent across restarts.** Changing it signs out all users. See [`notes/rotating-webui-secret-key.md`](notes/rotating-webui-secret-key.md) for rotation guidance.
+
+---
+
+### Step 5 — Build and start
+
+```bash
 make rebuild
 ```
 
-Open WebUI will be available at **http://localhost:8080**.
+This stops any existing container, rebuilds the image, and starts it detached. First build takes several minutes (downloading CUDA base image, installing Open WebUI, pulling toolchains).
+
+Check everything came up:
+```bash
+make status       # supervisord service list
+make healthcheck  # full API + disk check
+```
+
+---
+
+### Step 6 — Create your admin account
+
+Open **http://localhost:8080** in your browser. The first user to sign up becomes the administrator — fill in your name, email and password.
+
+> Open WebUI does **not** create a default admin account. The first sign-up on a fresh instance is always admin.
+
+---
+
+### Step 7 — Pull models
+
+```bash
+# Pull all configured models (downloads ~40 GB total)
+make pull-models
+
+# If you want other users to see the models immediately:
+OPENWEBUI_ADMIN_EMAIL=you@example.com \
+OPENWEBUI_ADMIN_PASSWORD=yourpassword \
+make fix-model-access
+```
+
+You're ready. Open WebUI is at **http://localhost:8080**, Ollama API at **http://localhost:11434**.
 
 ---
 
@@ -52,11 +154,6 @@ All state lives on the host via bind mounts — rebuilding the image never loses
 | `~/.ollama` | Downloaded LLM model files |
 | `~/.cloudflared` | Tunnel credentials and config |
 | `~/.local/share/open-webui` | User accounts, chat history, vector DB, uploads |
-
-> **One-time setup:** if you create or copy the Open WebUI data directory, fix ownership so it's writable inside the container:
-> ```bash
-> podman unshare chown -R 1000:1000 ~/.local/share/open-webui/
-> ```
 
 ---
 

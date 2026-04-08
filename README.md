@@ -84,9 +84,26 @@ The `pull-models` script pulls any models listed in it, skipping ones already do
 
 ---
 
-## Managing Users & Model Access
+## Scripts
 
-**Create a user:**
+All scripts live in `scripts/` and are installed to `/usr/local/bin` inside the container.
+
+### `pull-models`
+Pulls the curated model set from Ollama, skipping any already present. If the `OPENWEBUI_ADMIN_EMAIL` and `OPENWEBUI_ADMIN_PASSWORD` environment variables are set, it calls `fix-model-access` afterwards so newly pulled models are immediately visible to all users.
+
+```bash
+# Basic usage
+podman exec -it ai-boost pull-models
+
+# With automatic access grant sync
+podman exec -e OPENWEBUI_ADMIN_EMAIL=admin@example.com \
+            -e OPENWEBUI_ADMIN_PASSWORD=yourpassword \
+            ai-boost pull-models
+```
+
+### `create-user`
+Creates a new Open WebUI user account with the `user` role and grants them read access to all currently available models. Credentials are passed via CLI flags; internally they are forwarded as environment variables to Python to avoid shell quoting issues with special characters.
+
 ```bash
 podman exec -it ai-boost create-user \
   --admin-email admin@example.com \
@@ -96,15 +113,65 @@ podman exec -it ai-boost create-user \
   --password alicepassword
 ```
 
-**Re-grant model access** (run after pulling new models without creating a user):
+### `fix-model-access`
+Grants a wildcard read access grant (`principal_id: *`) to every model registered in Open WebUI. This makes all models visible to every authenticated user. Run this whenever new models are pulled without using `pull-models` + admin env vars, or to repair broken model visibility.
+
+> **Why this is needed:** Open WebUI 0.8 requires explicit access grants in its database — raw Ollama models with no DB entry are visible to admins only. See [`notes/open-webui-model-access.md`](notes/open-webui-model-access.md) for the full explanation.
+
 ```bash
-podman exec -it ai-boost \
-  -e OPENWEBUI_ADMIN_EMAIL=admin@example.com \
-  -e OPENWEBUI_ADMIN_PASSWORD=yourpassword \
-  fix-model-access
+podman exec -e OPENWEBUI_ADMIN_EMAIL=admin@example.com \
+            -e OPENWEBUI_ADMIN_PASSWORD=yourpassword \
+            ai-boost fix-model-access
 ```
 
-> **Note:** newly pulled models are invisible to regular users until `fix-model-access` or `create-user` is run. See [notes/open-webui-model-access.md](notes/open-webui-model-access.md) for details.
+### `healthcheck`
+Checks the health of all services and APIs in one command. Reports the status of each supervisord service, verifies the Ollama and Open WebUI HTTP APIs are reachable, confirms the Cloudflared tunnel process is running, and warns if disk usage on the Ollama volume exceeds 90%. Exits `0` if everything is healthy, `1` otherwise (useful in scripts).
+
+```bash
+podman exec -it ai-boost healthcheck
+```
+
+Example output:
+```
+=== ai-boost health check ===
+
+Services:
+  ✅  cloudflared  (RUNNING)
+  ✅  ollama  (RUNNING)
+  ✅  open-webui  (RUNNING)
+
+APIs:
+  ✅  Ollama  (http://localhost:11434)  10 model(s) loaded
+  ✅  Open WebUI  (http://localhost:8080)
+
+Tunnel:
+  ✅  Cloudflared tunnel
+
+Disk:
+  ✅  Ollama volume  (1.5T free, 14% used)
+
+All checks passed.
+```
+
+### `backup`
+Archives Open WebUI user data and Cloudflare tunnel credentials into a timestamped `.tar.gz`. Ollama model weights are intentionally excluded — they are large and can be re-pulled with `pull-models`. The archive is saved to `~/backups/` inside the container (which is on the bind-mounted home directory, so it persists on the host).
+
+```bash
+# Default output: ~/backups/ai-boost-backup-<timestamp>.tar.gz
+podman exec -it ai-boost backup
+
+# Custom output directory
+podman exec -it ai-boost backup /path/to/dir
+```
+
+To restore from a backup:
+```bash
+podman cp ~/backups/ai-boost-backup-<timestamp>.tar.gz ai-boost:/tmp/
+podman exec -it ai-boost tar -xzf /tmp/ai-boost-backup-<timestamp>.tar.gz -C /
+```
+
+### `entrypoint.sh`
+The container entrypoint (PID 1 before supervisord takes over). Chowns all three bind-mounted directories to `ubuntu:ubuntu` on every start, then hands off to supervisord via `exec sudo` with secrets forwarded explicitly as `VAR=value` arguments to bypass sudo's `env_reset`.
 
 ---
 

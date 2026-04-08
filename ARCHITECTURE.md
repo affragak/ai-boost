@@ -11,9 +11,14 @@ ai-boost/
 ├── Containerfile               # Image definition
 ├── podman-compose.yml          # Container runtime configuration
 ├── mise.toml                   # Developer toolchain versions (node, python, gh, uv)
+├── notes/                      # Operational notes and technical deep-dives
 ├── scripts/
 │   ├── entrypoint.sh           # Container startup: chown volumes, exec supervisord
-│   └── pull-models             # Helper to pull Ollama models (skips existing)
+│   ├── pull-models             # Pull curated Ollama model set; syncs access grants
+│   ├── create-user             # Create an Open WebUI user via REST API
+│   ├── fix-model-access        # Grant wildcard read access to all models
+│   ├── healthcheck             # Check services, APIs, and disk in one command
+│   └── backup                  # Archive Open WebUI data + Cloudflare credentials
 └── supervisord/
     ├── ollama.conf             # Ollama service definition
     ├── open-webui.conf         # Open WebUI service definition
@@ -93,7 +98,41 @@ Provides CUDA runtime libraries for GPU-accelerated inference. The `runtime` var
 
 ---
 
-## Runtime (podman-compose)
+## Scripts
+
+All scripts are installed to `/usr/local/bin` inside the container and are callable via `podman exec`.
+
+### `entrypoint.sh`
+The container entry point. Runs as `ubuntu`, uses `sudo` to chown the three bind-mounted directories (`~/.ollama`, `~/.cloudflared`, `~/.local/share/open-webui`) on every start, then hands off to supervisord via `exec sudo VAR=val …` — the explicit variable assignment bypasses sudo's `env_reset` so secrets reach supervisord.
+
+### `pull-models`
+Iterates over a curated list of Ollama models and pulls any that are not already present. If `OPENWEBUI_ADMIN_EMAIL` and `OPENWEBUI_ADMIN_PASSWORD` are set in the environment, it calls `fix-model-access` at the end so newly pulled models are immediately visible to all Open WebUI users. To customise the model set, edit the `MODELS` array at the top of the script.
+
+### `create-user`
+Creates a new Open WebUI user account (role: `user`) via the REST API and grants them read access to all currently registered models. Uses Python's `os.environ` to read all values — credentials are passed via `podman exec -e` flags, never as shell arguments, to safely handle passwords with special characters.
+
+### `fix-model-access`
+Sets a wildcard read grant (`principal_type: user`, `principal_id: *`) on every model in Open WebUI's database. This makes all models selectable by every authenticated user. Idempotent — safe to run repeatedly.
+
+**When to run:** after pulling new models without admin env vars set, or to repair a broken model-visibility state. See [`notes/open-webui-model-access.md`](notes/open-webui-model-access.md) for why this is required.
+
+### `healthcheck`
+Checks four things and reports pass/fail for each:
+1. **Supervisor services** — `ollama`, `open-webui`, `cloudflared` all `RUNNING`
+2. **Ollama API** — `GET /api/tags` reachable, reports model count
+3. **Open WebUI API** — `GET /health` reachable
+4. **Disk usage** — warns if the Ollama volume exceeds 90% capacity
+
+Exits `0` on full pass, `1` if any check fails.
+
+### `backup`
+Creates a timestamped `.tar.gz` of the two irreplaceable data directories:
+- `~/.local/share/open-webui` — user accounts, chat history, vector DB, uploaded files
+- `~/.cloudflared` — Cloudflare tunnel credentials
+
+Ollama model weights (`~/.ollama`) are excluded — they are large and fully recoverable via `pull-models`. Output lands in `~/backups/` by default (on the host, via bind mount).
+
+---
 
 ### GPU Passthrough
 ```yaml
@@ -203,11 +242,27 @@ podman-compose build
 # Start (detached)
 podman-compose up -d
 
-# Check service health
+# Full health check
+podman exec -it ai-boost healthcheck
+
+# Check individual service states
 podman exec -it ai-boost sudo supervisorctl status
 
-# Pull LLM models
+# Pull LLM models (+ auto-sync access grants if admin vars set)
 podman exec -it ai-boost pull-models
+
+# Create a new Open WebUI user
+podman exec -it ai-boost create-user \
+  --admin-email admin@example.com --admin-password yourpassword \
+  --name "Alice" --email alice@example.com --password alicepassword
+
+# Re-grant model access after pulling new models
+podman exec -e OPENWEBUI_ADMIN_EMAIL=admin@example.com \
+            -e OPENWEBUI_ADMIN_PASSWORD=yourpassword \
+            ai-boost fix-model-access
+
+# Backup Open WebUI data and Cloudflare credentials
+podman exec -it ai-boost backup
 
 # Shell access
 podman exec -it ai-boost bash

@@ -24,4 +24,6 @@ jobs:
           # DL3008 — apt-get pin versions (too strict for a local-only image)
           # DL3013 — pip pin versions (uv manages this)
           # DL3059 — multiple consecutive RUN (intentional layer grouping)
-          ignore: DL3008,DL3013,DL3059
+          # DL3022 — COPY --from external images (jdxcode/mise, astral-sh/uv) is intentional
+          # SC2016 — single quotes in echo to shell profile is intentional (literal string wanted)
+          ignore: DL3008,DL3013,DL3059,DL3022,SC2016

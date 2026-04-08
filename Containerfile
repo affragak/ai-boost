@@ -1,12 +1,14 @@
 # podman build --format docker -t ai .
 FROM nvidia/cuda:12.8.0-runtime-ubuntu24.04
 
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # 1. System Installations (Run as Root)
 COPY --from=jdxcode/mise /usr/local/bin/mise /usr/local/bin/
 COPY --from=ghcr.io/astral-sh/uv:0.11.4 /uv /usr/local/bin/uv
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo zstd libatomic1 supervisor nvtop git curl vim zsh \
     && rm -rf /var/lib/apt/lists/*
 
@@ -22,7 +24,7 @@ RUN ARCH=$(uname -m); \
 
 RUN curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | tee /usr/share/keyrings/cloudflare-main.gpg > /dev/null && \
     echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main" > /etc/apt/sources.list.d/cloudflared.list && \
-    apt-get update && apt-get install -y cloudflared && \
+    apt-get update && apt-get install -y --no-install-recommends cloudflared && \
     rm -rf /var/lib/apt/lists/*
 
 RUN --mount=type=cache,target=/root/.cache/uv \

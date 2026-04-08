@@ -78,7 +78,7 @@ The `pull-models` script pulls any models listed in it, skipping ones already do
 podman exec -it ai_ai_1 sudo supervisorctl status
 
 # Shell access
-podman exec -it ai_ai_1 zsh
+podman exec -it ai_ai_1 bash
 
 # Tail logs
 podman exec -it ai_ai_1 tail -f /var/log/open-webui.log

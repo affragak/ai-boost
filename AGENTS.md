@@ -106,7 +106,7 @@ podman exec -it ai-boost sudo supervisorctl status
 podman exec -it ai-boost pull-models
 
 # Shell access
-podman exec -it ai-boost zsh
+podman exec -it ai-boost bash
 
 # Tail logs
 podman exec -it ai-boost tail -f /var/log/open-webui.log

@@ -45,11 +45,16 @@ Priority ordering ensures Ollama is ready before Open WebUI starts (Open WebUI c
 
 | Model | Size | Purpose |
 |-------|------|---------|
-| `llama3.1:8b` | ~5 GB | General-purpose chat |
 | `qwen2.5:7b` | ~5 GB | General-purpose chat |
-| `deepseek-coder-v2:16b-lite-instruct-q4_K_M` | ~9 GB | Code generation / assistance |
 | `mistral-nemo` | ~7 GB | General-purpose chat |
-| `nomic-embed-text` | ~274 MB | RAG embeddings (required by Open WebUI) |
+| `gemma2:9b-instruct-q4_K_M` | ~5.5 GB | Reasoning / analysis |
+| `phi4:14b-q4_K_M` | ~8 GB | Heavy reasoning |
+| `qwen2.5-coder:7b` | ~5 GB | Code generation / assistance |
+| `llava:7b` | ~4.5 GB | Multimodal — image understanding |
+| `nomic-embed-text` | ~274 MB | RAG embeddings (Open WebUI) |
+| `mxbai-embed-large` | ~670 MB | Higher-quality RAG embeddings |
+
+All models are sized for 8 GB VRAM. Only one model is loaded at a time (`OLLAMA_MAX_LOADED_MODELS=1`).
 
 ### Open WebUI
 - Full-featured chat interface at `http://localhost:8080`

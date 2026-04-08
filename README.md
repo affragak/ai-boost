@@ -73,13 +73,14 @@ The `pull-models` script pulls any models listed in it, skipping ones already do
 
 | Model | Size | Purpose |
 |-------|------|---------|
-| `llama3.1:8b` | ~5 GB | General-purpose chat |
 | `qwen2.5:7b` | ~5 GB | General-purpose chat |
-| `deepseek-coder-v2:16b-lite-instruct-q4_K_M` | ~9 GB | Code generation / assistance |
 | `mistral-nemo` | ~7 GB | General-purpose chat |
-| `nomic-embed-text` | ~274 MB | RAG embeddings (required by Open WebUI) |
-
-To add or remove models, edit the `MODELS` array in `scripts/pull-models`.
+| `gemma2:9b-instruct-q4_K_M` | ~5.5 GB | Reasoning / analysis |
+| `phi4:14b-q4_K_M` | ~8 GB | Heavy reasoning |
+| `qwen2.5-coder:7b` | ~5 GB | Code generation / assistance |
+| `llava:7b` | ~4.5 GB | Multimodal — image understanding |
+| `nomic-embed-text` | ~274 MB | RAG embeddings (Open WebUI) |
+| `mxbai-embed-large` | ~670 MB | Higher-quality RAG embeddings |
 
 ---
 

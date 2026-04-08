@@ -3,20 +3,27 @@ set -e
 
 # Models pulled on first run inside the container.
 # Add or remove entries to customise your local model set.
+# Sized for 8 GB VRAM (NVIDIA RTX 5060) — keep models at Q4 ≤ ~8 GB.
 #
-# | Model                                      | Size  | Purpose                        |
-# |--------------------------------------------|-------|--------------------------------|
-# | llama3.1:8b                                | ~5 GB | General-purpose chat           |
-# | qwen2.5:7b                                 | ~5 GB | General-purpose chat           |
-# | deepseek-coder-v2:16b-lite-instruct-q4_K_M | ~9 GB | Code generation / assistance   |
-# | mistral-nemo                               | ~7 GB | General-purpose chat           |
-# | nomic-embed-text                           | ~274 MB | RAG embeddings (Open WebUI)  |
+# | Model                      | Size     | Purpose                          |
+# |----------------------------|----------|----------------------------------|
+# | qwen2.5:7b                 | ~5 GB    | General-purpose chat             |
+# | mistral-nemo               | ~7 GB    | General-purpose chat             |
+# | gemma2:9b-instruct-q4_K_M  | ~5.5 GB  | Reasoning / analysis             |
+# | phi4:14b-q4_K_M            | ~8 GB    | Heavy reasoning (fills VRAM)     |
+# | qwen2.5-coder:7b           | ~5 GB    | Code generation / assistance     |
+# | llava:7b                   | ~4.5 GB  | Multimodal — image understanding |
+# | nomic-embed-text           | ~274 MB  | RAG embeddings (Open WebUI)      |
+# | mxbai-embed-large          | ~670 MB  | Higher-quality RAG embeddings    |
 MODELS=(
-  "llama3.1:8b"
   "qwen2.5:7b"
-  "deepseek-coder-v2:16b-lite-instruct-q4_K_M"
   "mistral-nemo"
+  "gemma2:9b-instruct-q4_K_M"
+  "phi4:14b-q4_K_M"
+  "qwen2.5-coder:7b"
+  "llava:7b"
   "nomic-embed-text"
+  "mxbai-embed-large"
 )
 
 for model in "${MODELS[@]}"; do

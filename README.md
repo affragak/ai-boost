@@ -84,7 +84,22 @@ The `pull-models` script pulls any models listed in it, skipping ones already do
 
 ---
 
-## Common Operations
+## Creating Users
+
+```bash
+scripts/create-user \
+  --admin-email admin@example.com \
+  --admin-password yourpassword \
+  --name "Alice" \
+  --email alice@example.com \
+  --password alicepassword
+```
+
+The script authenticates as admin, creates the user with role `user`, and grants access to all available models. Run it from the host — it talks to Open WebUI at `http://localhost:8080`.
+
+---
+
+
 
 ```bash
 # Check service health

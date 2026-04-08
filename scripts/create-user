@@ -1,0 +1,85 @@
+#!/bin/bash
+set -e
+
+OPENWEBUI_URL="http://localhost:8080"
+
+usage() {
+  cat <<EOF
+Usage: create-user --admin-email EMAIL --admin-password PASSWORD \\
+                   --name NAME --email EMAIL --password PASSWORD
+
+Creates a new user in Open WebUI with role 'user' and access to all
+currently available models.
+
+Options:
+  --admin-email      Admin account email
+  --admin-password   Admin account password
+  --name             Display name for the new user
+  --email            Email for the new user
+  --password         Password for the new user
+EOF
+  exit 1
+}
+
+die() { echo "Error: $*" >&2; exit 1; }
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --admin-email)    ADMIN_EMAIL="$2";    shift 2 ;;
+    --admin-password) ADMIN_PASSWORD="$2"; shift 2 ;;
+    --name)           USER_NAME="$2";      shift 2 ;;
+    --email)          USER_EMAIL="$2";     shift 2 ;;
+    --password)       USER_PASSWORD="$2";  shift 2 ;;
+    *) usage ;;
+  esac
+done
+
+[[ -z "$ADMIN_EMAIL" || -z "$ADMIN_PASSWORD" || -z "$USER_NAME" || -z "$USER_EMAIL" || -z "$USER_PASSWORD" ]] && usage
+
+# Authenticate as admin
+echo "Authenticating as admin..."
+TOKEN=$(curl -sf -X POST "$OPENWEBUI_URL/api/v1/auths/signin" \
+  -H "Content-Type: application/json" \
+  -d "{\"email\": \"$ADMIN_EMAIL\", \"password\": \"$ADMIN_PASSWORD\"}" \
+  | python3 -c "import sys, json; print(json.load(sys.stdin)['token'])") \
+  || die "Admin authentication failed. Check credentials and that Open WebUI is running."
+
+# Create user
+echo "Creating user '$USER_NAME' ($USER_EMAIL)..."
+USER=$(curl -sf -X POST "$OPENWEBUI_URL/api/v1/auths/add" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d "{\"name\": \"$USER_NAME\", \"email\": \"$USER_EMAIL\", \"password\": \"$USER_PASSWORD\", \"role\": \"user\"}") \
+  || die "Failed to create user. The email may already be registered."
+
+echo "$USER" | python3 -c "
+import sys, json
+u = json.load(sys.stdin)
+print(f\"  Created: {u['name']} ({u['email']}) role={u['role']}\")
+"
+
+# Grant access to all available models
+echo "Fetching available models..."
+MODELS=$(curl -sf "$OPENWEBUI_URL/api/v1/models" \
+  -H "Authorization: Bearer $TOKEN") \
+  || die "Failed to fetch models."
+
+USER_ID=$(echo "$USER" | python3 -c "import sys, json; print(json.load(sys.stdin)['id'])")
+
+echo "$MODELS" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+models = data if isinstance(data, list) else data.get('data', [])
+ids = [m['id'] for m in models if m.get('id')]
+print('\n'.join(ids))
+" | while IFS= read -r model_id; do
+  result=$(curl -sf -X POST "$OPENWEBUI_URL/api/v1/models/model/access/update" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $TOKEN" \
+    -d "{\"id\": \"$model_id\", \"access_control\": null}" 2>/dev/null) || true
+  echo "  Model access set: $model_id"
+done
+
+echo ""
+echo "Done. User '$USER_NAME' can now log in at $OPENWEBUI_URL"

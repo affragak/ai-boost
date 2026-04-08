@@ -27,8 +27,12 @@ services:
       # Passed in from your host shell — set these before running:
       #   export ANTHROPIC_API_KEY=sk-...
       #   export MISE_GITHUB_TOKEN=ghp_...
+      #   export WEBUI_SECRET_KEY=$(openssl rand -hex 32)
+      #   export CLOUDFLARED_TUNNEL_ID=<your-tunnel-uuid>
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       MISE_GITHUB_TOKEN: ${MISE_GITHUB_TOKEN}
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+      CLOUDFLARED_TUNNEL_ID: ${CLOUDFLARED_TUNNEL_ID}
 
     volumes:
       - type: bind

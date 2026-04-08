@@ -54,7 +54,6 @@ WORKDIR /home/ubuntu
 
 # Set environment for mise and WebUI
 ENV PATH="/home/ubuntu/.local/share/mise/shims:$PATH" \
-    WEBUI_SECRET_KEY="ai-boost-default-secret-key" \
     DATA_DIR="/home/ubuntu/.local/share/open-webui" \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=all \

@@ -84,6 +84,8 @@ When bumping a version, update only that one pin — do not touch unrelated comp
 
 ### Environment variables
 - `ANTHROPIC_API_KEY` and `MISE_GITHUB_TOKEN` are injected from the host shell at runtime — they must **never** be hardcoded in any file.
+- `WEBUI_SECRET_KEY` is injected the same way — generate with `openssl rand -hex 32`. It is passed through `entrypoint.sh` into supervisord via explicit `sudo VAR=val` assignment and then into open-webui via `%(ENV_WEBUI_SECRET_KEY)s` in `supervisord/open-webui.conf`.
+- `CLOUDFLARED_TUNNEL_ID` is injected the same way and referenced in `supervisord/cloudflared.conf` via `%(ENV_CLOUDFLARED_TUNNEL_ID)s`.
 - Ollama tuning vars (`OLLAMA_KEEP_ALIVE`, `OLLAMA_MAX_LOADED_MODELS`, `OLLAMA_NUM_PARALLEL`) live in `podman-compose.yml`, not in supervisord confs.
 
 ---

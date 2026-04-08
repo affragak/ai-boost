@@ -20,6 +20,8 @@ Bundles a local LLM inference server ([Ollama](https://ollama.com)), a web chat 
 # 1. Set required environment variables
 export ANTHROPIC_API_KEY=sk-...
 export MISE_GITHUB_TOKEN=ghp_...
+export WEBUI_SECRET_KEY=$(openssl rand -hex 32)
+export CLOUDFLARED_TUNNEL_ID=<your-tunnel-uuid>
 
 # 2. Build the image
 podman-compose build
@@ -99,6 +101,8 @@ podman-compose up --build -d
 |----------|---------|
 | `ANTHROPIC_API_KEY` | Claude API access for Claude Code |
 | `MISE_GITHUB_TOKEN` | GitHub token for mise tool downloads |
+| `WEBUI_SECRET_KEY` | JWT signing key for Open WebUI sessions — generate with `openssl rand -hex 32` |
+| `CLOUDFLARED_TUNNEL_ID` | UUID of your Cloudflare Tunnel (from `cloudflared tunnel list`) |
 
 Set these in your shell before running `podman-compose up`.
 

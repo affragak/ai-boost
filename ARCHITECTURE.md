@@ -260,7 +260,9 @@ Tags published:
 - `latest` — always points to the most recent `main` build
 - `<short-sha>` — e.g. `ghcr.io/affragak/ai-boost:3ee080c`
 
-Uses GitHub Actions layer cache (`type=gha`) so rebuilds after small changes (e.g. a script edit) complete in minutes instead of 30+.
+**Build cache:** uses `type=registry` cache stored as `ghcr.io/affragak/ai-boost:buildcache` (a separate OCI tag in GHCR). This avoids the 10 GB GitHub Actions cache limit that a CUDA + pip image fills quickly. Rebuilds after small changes (e.g. a script edit) complete in minutes instead of 30+.
+
+**Concurrency:** the workflow uses `cancel-in-progress: true` — if a new push arrives while a build is running, the old build is cancelled automatically. This prevents stale runs from overwriting `:latest` with an older image.
 
 **First-time package visibility:** the first push creates a private package. Go to `https://github.com/affragak?tab=packages`, open `ai-boost`, → Package settings → Change visibility → Public.
 
@@ -287,20 +289,26 @@ Operational notes and technical deep-dives live in the `notes/` directory:
 ## Common Operations
 
 ```bash
-# Build image
-podman-compose build
+# Build image locally
+make build
+
+# Pull pre-built image from GHCR (faster than building locally)
+make pull
 
 # Start (detached)
-podman-compose up -d
+make up
+
+# Full stop → rebuild locally → start
+make rebuild
 
 # Full health check
-podman exec -it ai-boost healthcheck
+make healthcheck
 
 # Check individual service states
-podman exec -it ai-boost sudo supervisorctl status
+make status
 
 # Pull LLM models (+ auto-sync access grants if admin vars set)
-podman exec -it ai-boost pull-models
+make pull-models
 
 # Create a new Open WebUI user
 podman exec -it ai-boost create-user \
@@ -313,18 +321,15 @@ podman exec -e OPENWEBUI_ADMIN_EMAIL=admin@example.com \
             ai-boost fix-model-access
 
 # Backup Open WebUI data and Cloudflare credentials
-podman exec -it ai-boost backup
+make backup
 
 # Shell access
-podman exec -it ai-boost bash
+make shell
 
 # Tail logs
-podman exec -it ai-boost tail -f /var/log/open-webui.log
-podman exec -it ai-boost tail -f /var/log/ollama.err
+make logs-webui
+make logs-ollama
 
 # Stop
-podman-compose down
-
-# Rebuild and restart
-podman-compose up --build -d
+make down
 ```

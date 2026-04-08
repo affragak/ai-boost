@@ -1,0 +1,5 @@
+[tools]
+gh = "latest"
+node = "lts"
+python = "3.13"
+uv = "latest"

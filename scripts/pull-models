@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+MODELS=(
+  "llama3.1:8b"
+  "qwen2.5:7b"
+  "deepseek-coder-v2:16b-lite-instruct-q4_K_M"
+  "mistral-nemo"
+)
+
+for model in "${MODELS[@]}"; do
+  if ollama list 2>/dev/null | grep -q "^${model}"; then
+    echo "Skipping $model (already present)"
+  else
+    echo "Pulling $model..."
+    ollama pull "$model"
+  fi
+done
+
+echo "All models ready."

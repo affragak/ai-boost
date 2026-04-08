@@ -1,0 +1,51 @@
+name: ai
+
+services:
+  ai:
+    build:
+      context: .
+      dockerfile: Containerfile
+
+    image: ai
+
+    # GPU passthrough via CDI (requires nvidia-container-toolkit on host)
+    devices:
+      - nvidia.com/gpu=all
+
+    security_opt:
+      - label=disable
+
+    ports:
+      - "8080:8080"
+      - "11434:11434"
+
+    environment:
+      OLLAMA_KEEP_ALIVE: 10m
+      OLLAMA_MAX_LOADED_MODELS: 1
+      OLLAMA_NUM_PARALLEL: 1
+      # Passed in from your host shell — set these before running:
+      #   export ANTHROPIC_API_KEY=sk-...
+      #   export MISE_GITHUB_TOKEN=ghp_...
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      MISE_GITHUB_TOKEN: ${MISE_GITHUB_TOKEN}
+
+    volumes:
+      - type: bind
+        source: ${HOME}/.ollama
+        target: /home/ubuntu/.ollama
+        # :z sets SELinux label for Podman (equiv to devcontainer consistency=cached)
+        bind:
+          selinux: z
+      - type: bind
+        source: ${HOME}/.cloudflared
+        target: /home/ubuntu/.cloudflared
+        bind:
+          selinux: z
+      - type: bind
+        source: ${HOME}/.local/share/open-webui
+        target: /home/ubuntu/.local/share/open-webui
+        bind:
+          selinux: z
+
+    stdin_open: true
+    tty: true

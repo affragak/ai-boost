@@ -85,16 +85,17 @@ user = request("POST", "/api/v1/auths/add",
                 "password": user_pass, "role": "user"}, token)
 print(f"  Created: {user['name']} ({user['email']}) role={user['role']}")
 
-# Grant access to all models
-print("Granting model access...")
+# Grant all users read access to all models
+print("Granting model access to all users...")
 models_resp = request("GET", "/api/v1/models", token=token)
 models = models_resp if isinstance(models_resp, list) else models_resp.get("data", [])
+public_read = [{"principal_type": "user", "principal_id": "*", "permission": "read"}]
 for m in models:
     mid = m.get("id")
     if not mid:
         continue
     request("POST", "/api/v1/models/model/access/update",
-            {"id": mid, "access_control": None, "access_grants": []}, token)
+            {"id": mid, "access_grants": public_read}, token)
     print(f"  Model access set: {mid}")
 
 print(f"\nDone. User '{user_name}' can now log in at {url}")

@@ -95,7 +95,16 @@ scripts/create-user \
   --password alicepassword
 ```
 
-The script authenticates as admin, creates the user with role `user`, and grants access to all available models. Run it from the host — it talks to Open WebUI at `http://localhost:8080`.
+The script authenticates as admin, creates the user with role `user`, and grants access to all available models. Run it from inside the container:
+
+```bash
+podman exec -it ai-boost create-user \
+  --admin-email admin@example.com \
+  --admin-password yourpassword \
+  --name "Alice" \
+  --email alice@example.com \
+  --password alicepassword
+```
 
 ---
 

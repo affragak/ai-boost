@@ -36,6 +36,9 @@ COPY supervisord/cloudflared.conf /etc/supervisor/conf.d/cloudflared.conf
 COPY scripts/pull-models /usr/local/bin/pull-models
 RUN chmod +x /usr/local/bin/pull-models
 
+COPY scripts/create-user /usr/local/bin/create-user
+RUN chmod +x /usr/local/bin/create-user
+
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

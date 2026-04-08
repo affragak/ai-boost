@@ -1,0 +1,27 @@
+name: Lint
+
+on:
+  push:
+    paths:
+      - Containerfile
+      - .github/workflows/lint.yml
+  pull_request:
+    paths:
+      - Containerfile
+      - .github/workflows/lint.yml
+
+jobs:
+  hadolint:
+    name: Lint Containerfile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Containerfile
+          # DL3008 — apt-get pin versions (too strict for a local-only image)
+          # DL3013 — pip pin versions (uv manages this)
+          # DL3059 — multiple consecutive RUN (intentional layer grouping)
+          ignore: DL3008,DL3013,DL3059

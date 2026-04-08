@@ -23,11 +23,8 @@ export MISE_GITHUB_TOKEN=ghp_...
 export WEBUI_SECRET_KEY=$(openssl rand -hex 32)
 export CLOUDFLARED_TUNNEL_ID=<your-tunnel-uuid>
 
-# 2. Build the image
-podman-compose build
-
-# 3. Start (detached)
-podman-compose up -d
+# 2. Build and start
+make rebuild
 ```
 
 Open WebUI will be available at **http://localhost:8080**.
@@ -178,28 +175,20 @@ The container entrypoint (PID 1 before supervisord takes over). Chowns all three
 ## Common Operations
 
 ```bash
-# Full health check (services, APIs, disk)
-podman exec -it ai-boost healthcheck
-
-# Check service health
-podman exec -it ai-boost sudo supervisorctl status
-
-# Shell access
-podman exec -it ai-boost bash
-
-# Tail logs
-podman exec -it ai-boost tail -f /var/log/open-webui.log
-podman exec -it ai-boost tail -f /var/log/ollama.err
-
-# Backup Open WebUI data and Cloudflare credentials
-podman exec -it ai-boost backup
-
-# Stop
-podman-compose down
-
-# Rebuild and restart
-podman-compose up --build -d
+make up              # Start the container (detached)
+make down            # Stop and remove it
+make rebuild         # Full stop → rebuild → start cycle
+make shell           # Open a bash shell inside the container
+make status          # Show supervisord service status
+make logs-webui      # Tail Open WebUI logs
+make logs-ollama     # Tail Ollama logs
+make healthcheck     # Full health check (services, APIs, disk)
+make pull-models     # Pull configured Ollama models
+make backup          # Archive Open WebUI data + Cloudflare credentials
+make help            # List all available targets
 ```
+
+Direct `podman exec` equivalents are in the scripts section below for cases where you need raw access.
 
 ---
 

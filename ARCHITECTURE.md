@@ -9,20 +9,29 @@ A self-contained AI workstation running inside a single rootless Podman containe
 ```
 ai-boost/
 ├── Containerfile               # Image definition
-├── podman-compose.yml          # Container runtime configuration
+├── podman-compose.yml          # Container runtime configuration (GPU, ports, env_file)
+├── .env.example                # Template for required env vars — copy to .env
+├── Makefile                    # Single source of truth for all common operations
 ├── mise.toml                   # Developer toolchain versions (node, python, gh, uv)
 ├── notes/                      # Operational notes and technical deep-dives
+├── .github/workflows/lint.yml  # hadolint CI — runs on every push
 ├── scripts/
 │   ├── entrypoint.sh           # Container startup: chown volumes, exec supervisord
 │   ├── pull-models             # Pull curated Ollama model set; syncs access grants
 │   ├── create-user             # Create an Open WebUI user via REST API
 │   ├── fix-model-access        # Grant wildcard read access to all models
 │   ├── healthcheck             # Check services, APIs, and disk in one command
-│   └── backup                  # Archive Open WebUI data + Cloudflare credentials
-└── supervisord/
-    ├── ollama.conf             # Ollama service definition
-    ├── open-webui.conf         # Open WebUI service definition
-    └── cloudflared.conf        # Cloudflared tunnel service definition
+│   ├── backup                  # Archive Open WebUI data + Cloudflare credentials
+│   ├── list-users              # List all Open WebUI users with roles (inside container)
+│   └── update                  # Check pinned versions vs latest upstream (host-side)
+├── supervisord/
+│   ├── ollama.conf             # Ollama service definition
+│   ├── open-webui.conf         # Open WebUI service definition
+│   └── cloudflared.conf        # Cloudflared tunnel service definition
+└── systemd/
+    ├── ai-boost.service        # User service template (auto-start on boot)
+    ├── ai-boost-backup.service # Backup job unit
+    └── ai-boost-backup.timer   # Daily backup schedule (03:00)
 ```
 
 ---
@@ -132,6 +141,12 @@ Creates a timestamped `.tar.gz` of the two irreplaceable data directories:
 
 Ollama model weights (`~/.ollama`) are excluded — they are large and fully recoverable via `pull-models`. Output lands in `~/backups/` by default (on the host, via bind mount).
 
+### `list-users`
+Lists every Open WebUI user with their name, email, role, and sign-up date. Admins are shown first and marked with ★; pending accounts are flagged with ⚠. Runs **inside the container** via `podman exec` or `make list-users`. Credentials are passed via `podman exec -e` flags using the `_LU_` prefix pattern.
+
+### `update`
+Reads the pinned versions from `Containerfile` and fetches the latest releases from PyPI (open-webui) and GitHub Releases API (ollama, uv). Prints a comparison table with ✅ / ⬆️ per component. Runs **on the host** — no container needed. Use `make update` or `./scripts/update`.
+
 ---
 
 ### GPU Passthrough
@@ -161,22 +176,16 @@ All mounts use `selinux: z` for SELinux label relabelling (required on SELinux-e
 
 ### Environment Variables
 
-Variables passed from the host shell at runtime:
+Secrets are loaded from `.env` on the host (git-ignored). Copy `.env.example` → `.env` and fill in your values — `podman-compose` reads `.env` automatically via `env_file`. Shell exports take precedence if set.
 
-| Variable | Purpose |
-|----------|---------|
-| `ANTHROPIC_API_KEY` | Claude API access for Claude Code |
-| `MISE_GITHUB_TOKEN` | GitHub token for mise tool downloads |
-| `WEBUI_SECRET_KEY` | JWT signing key for Open WebUI sessions |
-| `CLOUDFLARED_TUNNEL_ID` | UUID of the Cloudflare Tunnel to run |
-
-Set these before running:
-```bash
-export ANTHROPIC_API_KEY=sk-...
-export MISE_GITHUB_TOKEN=ghp_...
-export WEBUI_SECRET_KEY=$(openssl rand -hex 32)
-export CLOUDFLARED_TUNNEL_ID=<your-tunnel-uuid>
-```
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `WEBUI_SECRET_KEY` | ✅ | JWT signing key for Open WebUI sessions |
+| `CLOUDFLARED_TUNNEL_ID` | ✅ | UUID of the Cloudflare Tunnel to run |
+| `ANTHROPIC_API_KEY` | optional | Claude API access for Claude Code |
+| `MISE_GITHUB_TOKEN` | optional | GitHub token for mise tool downloads |
+| `OPENWEBUI_ADMIN_EMAIL` | optional | Admin email for `list-users`, `fix-model-access`, `create-user` |
+| `OPENWEBUI_ADMIN_PASSWORD` | optional | Admin password for the same scripts |
 
 `WEBUI_SECRET_KEY` and `CLOUDFLARED_TUNNEL_ID` are passed through `sudo` using explicit `VAR=val` assignment in `entrypoint.sh` (bypassing `sudo`'s env_reset), then injected into the respective supervisord program environments via `%(ENV_...)s` interpolation.
 

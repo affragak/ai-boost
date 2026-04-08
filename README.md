@@ -333,7 +333,7 @@ A systemd user service is included so the container starts automatically when yo
 
 ### Install
 
-Make sure your environment variables are exported in the current shell, then:
+Make sure your `.env` is populated (or env vars are exported), then:
 
 ```bash
 make install-systemd
@@ -390,12 +390,14 @@ Direct `podman exec` equivalents are in the scripts section below for cases wher
 
 | Variable | Purpose |
 |----------|---------|
-| `ANTHROPIC_API_KEY` | Claude API access for Claude Code |
-| `MISE_GITHUB_TOKEN` | GitHub token for mise tool downloads |
 | `WEBUI_SECRET_KEY` | JWT signing key for Open WebUI sessions — generate with `openssl rand -hex 32` |
 | `CLOUDFLARED_TUNNEL_ID` | UUID of your Cloudflare Tunnel (from `cloudflared tunnel list`) |
+| `ANTHROPIC_API_KEY` | Claude API access for Claude Code |
+| `MISE_GITHUB_TOKEN` | GitHub token for mise tool downloads |
+| `OPENWEBUI_ADMIN_EMAIL` | Admin email for `list-users`, `fix-model-access`, `create-user` |
+| `OPENWEBUI_ADMIN_PASSWORD` | Admin password for the same scripts |
 
-Set these in your shell before running `podman-compose up`.
+Set these in `.env` (copy from `.env.example`) — `podman-compose` reads it automatically. Shell exports also work and take precedence.
 
 ---
 

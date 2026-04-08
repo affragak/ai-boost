@@ -23,16 +23,30 @@ All three services are managed by **supervisord** (PID 1 via entrypoint). The co
 ```
 ai-boost/
 ├── Containerfile               # Single-stage image build
-├── podman-compose.yml          # Container runtime config (GPU, ports, bind mounts)
+├── podman-compose.yml          # Container runtime config (GPU, ports, bind mounts, env_file)
+├── .env.example                # Template for required env vars — copy to .env and fill in
+├── Makefile                    # Single source of truth for all common operations
 ├── mise.toml                   # Toolchain versions (node LTS, python 3.13, gh, uv)
 ├── ARCHITECTURE.md             # Detailed architecture reference
+├── .github/workflows/lint.yml  # hadolint CI — runs on every push
+├── notes/                      # Operational notes and technical deep-dives
 ├── scripts/
-│   ├── entrypoint.sh           # Container startup script
-│   └── pull-models             # Helper to pull Ollama models
-└── supervisord/
-    ├── ollama.conf
-    ├── open-webui.conf
-    └── cloudflared.conf
+│   ├── entrypoint.sh           # Container startup: chown volumes, exec supervisord
+│   ├── pull-models             # Pull curated Ollama model set; syncs access grants
+│   ├── create-user             # Create an Open WebUI user via REST API
+│   ├── fix-model-access        # Grant wildcard read access to all models
+│   ├── healthcheck             # Check services, APIs, and disk in one command
+│   ├── backup                  # Archive Open WebUI data + Cloudflare credentials
+│   ├── list-users              # List all Open WebUI users with roles (inside container)
+│   └── update                  # Check pinned versions vs latest upstream (host-side)
+├── supervisord/
+│   ├── ollama.conf
+│   ├── open-webui.conf
+│   └── cloudflared.conf
+└── systemd/
+    ├── ai-boost.service        # User service template (auto-start on boot)
+    ├── ai-boost-backup.service # Backup job unit
+    └── ai-boost-backup.timer   # Daily backup schedule (03:00)
 ```
 
 ---
@@ -83,9 +97,11 @@ When bumping a version, update only that one pin — do not touch unrelated comp
 - Ollama is **priority 1**, Open WebUI **priority 2**, Cloudflared **priority 3**. This ensures Ollama is listening before Open WebUI tries to connect. Respect this ordering when adding new services.
 
 ### Environment variables
-- `ANTHROPIC_API_KEY` and `MISE_GITHUB_TOKEN` are injected from the host shell at runtime — they must **never** be hardcoded in any file.
-- `WEBUI_SECRET_KEY` is injected the same way — generate with `openssl rand -hex 32`. It is passed through `entrypoint.sh` into supervisord via explicit `sudo VAR=val` assignment and then into open-webui via `%(ENV_WEBUI_SECRET_KEY)s` in `supervisord/open-webui.conf`.
-- `CLOUDFLARED_TUNNEL_ID` is injected the same way and referenced in `supervisord/cloudflared.conf` via `%(ENV_CLOUDFLARED_TUNNEL_ID)s`.
+- All secrets live in `.env` (git-ignored). Copy `.env.example` → `.env` and fill in values. `podman-compose` reads `.env` automatically via `env_file`; shell exports take precedence if also set.
+- `ANTHROPIC_API_KEY` and `MISE_GITHUB_TOKEN` are optional but recommended — they must **never** be hardcoded in any file.
+- `WEBUI_SECRET_KEY` is required — generate with `openssl rand -hex 32`. It is passed through `entrypoint.sh` into supervisord via explicit `sudo VAR=val` assignment and then into open-webui via `%(ENV_WEBUI_SECRET_KEY)s` in `supervisord/open-webui.conf`.
+- `CLOUDFLARED_TUNNEL_ID` is required — referenced in `supervisord/cloudflared.conf` via `%(ENV_CLOUDFLARED_TUNNEL_ID)s`.
+- `OPENWEBUI_ADMIN_EMAIL` and `OPENWEBUI_ADMIN_PASSWORD` are used by `list-users`, `fix-model-access`, `create-user`, and the `make` wrappers for those scripts.
 - Ollama tuning vars (`OLLAMA_KEEP_ALIVE`, `OLLAMA_MAX_LOADED_MODELS`, `OLLAMA_NUM_PARALLEL`) live in `podman-compose.yml`, not in supervisord confs.
 
 ---
@@ -94,26 +110,35 @@ When bumping a version, update only that one pin — do not touch unrelated comp
 
 ```bash
 # Build image
-podman-compose build
+make build               # or: podman-compose build
 
 # Start (detached)
-podman-compose up -d
+make up                  # or: podman-compose up -d
+
+# Full stop → rebuild → start
+make rebuild
 
 # Check service health inside container
-podman exec -it ai-boost sudo supervisorctl status
+make status              # supervisord service list
+make healthcheck         # full API + disk check
 
 # Pull LLM models
-podman exec -it ai-boost pull-models
+make pull-models
 
-# Full health check (services, APIs, disk)
-podman exec -it ai-boost healthcheck
+# List all Open WebUI users with roles
+OPENWEBUI_ADMIN_EMAIL=admin@example.com \
+OPENWEBUI_ADMIN_PASSWORD=yourpassword \
+make list-users
+
+# Check for version updates (host-side, no container needed)
+make update
 
 # Shell access
-podman exec -it ai-boost bash
+make shell               # or: podman exec -it ai-boost bash
 
 # Tail logs
-podman exec -it ai-boost tail -f /var/log/open-webui.log
-podman exec -it ai-boost tail -f /var/log/ollama.err
+make logs-webui          # Open WebUI
+make logs-ollama         # Ollama
 
 # Create a new Open WebUI user
 podman exec -it ai-boost create-user \
@@ -126,10 +151,13 @@ podman exec -e OPENWEBUI_ADMIN_EMAIL=admin@example.com \
             ai-boost fix-model-access
 
 # Backup Open WebUI data and Cloudflare credentials
-podman exec -it ai-boost backup
+make backup              # or: podman exec -it ai-boost backup
+
+# Install systemd auto-start (reads .env automatically)
+make install-systemd
 
 # Rebuild and restart
-podman-compose up --build -d
+make rebuild             # or: podman-compose up --build -d
 ```
 
 ---

@@ -1,4 +1,4 @@
-# podman build --format docker -t ai .
+# podman build --format docker -t ghcr.io/affragak/ai-boost:latest .
 FROM nvidia/cuda:12.8.0-runtime-ubuntu24.04
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

@@ -118,7 +118,10 @@ make build               # or: podman-compose build
 # Start (detached)
 make up                  # or: podman-compose up -d
 
-# Full stop → rebuild → start
+# Pull pre-built image from GHCR (faster than building locally)
+make pull                # or: podman pull ghcr.io/affragak/ai-boost:latest
+
+# Full stop → rebuild locally → start
 make rebuild
 
 # Check service health inside container

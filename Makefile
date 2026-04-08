@@ -2,7 +2,7 @@ CONTAINER := ai-boost
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down build rebuild logs shell status \
+.PHONY: help up down build rebuild pull logs shell status \
         pull-models healthcheck backup \
         fix-model-access create-user list-users update \
         install-systemd uninstall-systemd
@@ -22,7 +22,10 @@ down: ## Stop and remove the container
 build: ## Build the image without starting
 	podman-compose build
 
-rebuild: ## Stop, rebuild image, and start (full cycle)
+pull: ## Pull the latest pre-built image from GHCR (faster than building locally)
+	podman pull ghcr.io/affragak/ai-boost:latest
+
+rebuild: ## Stop, rebuild image locally, and start (full cycle)
 	podman-compose down
 	podman-compose up --build -d
 

@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Containerfile
 
-    image: ai
+    image: ghcr.io/affragak/ai-boost:latest
 
     # Load secrets from .env (copy .env.example → .env and fill in values)
     env_file:

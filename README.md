@@ -10,9 +10,10 @@ Bundles a local LLM inference server ([Ollama](https://ollama.com)), a web chat 
 
 > **Prefer a faster start?** A pre-built image is published to the GitHub Container Registry on every relevant push to `main`. Skip the 20–30 min local build with:
 > ```bash
-> podman pull ghcr.io/affragak/ai-boost:latest
+> make pull   # ~2 GB download
+> make up
 > ```
-> The image is public — no login required. Then jump straight to Step 3 (you still need to create the data directories and set up your `.env`).
+> Then jump straight to Step 3 (you still need the data directories and `.env`).
 
 ---
 
@@ -383,7 +384,8 @@ make uninstall-systemd
 ```bash
 make up              # Start the container (detached)
 make down            # Stop and remove it
-make rebuild         # Full stop → rebuild → start cycle
+make pull            # Pull latest pre-built image from GHCR
+make rebuild         # Stop → build locally → start
 make shell           # Open a bash shell inside the container
 make status          # Show supervisord service status
 make logs-webui      # Tail Open WebUI logs

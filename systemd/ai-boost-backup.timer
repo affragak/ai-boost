@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily ai-boost backup
+Requires=ai-boost-backup.service
+
+[Timer]
+# Run every day at 03:00; if the machine was off, run on next boot
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+# Spread the run up to 30 min to avoid thundering-herd on shared hosts
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target

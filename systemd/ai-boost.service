@@ -1,0 +1,26 @@
+[Unit]
+Description=ai-boost AI workstation (Ollama + Open WebUI + Cloudflared)
+Documentation=https://github.com/affragak/ai-boost
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+# Loads WEBUI_SECRET_KEY, CLOUDFLARED_TUNNEL_ID, ANTHROPIC_API_KEY,
+# MISE_GITHUB_TOKEN — created by `make install-systemd`
+EnvironmentFile=%h/.config/ai-boost/env
+
+# Substituted with the real repo path by `make install-systemd`
+WorkingDirectory=REPO_PATH
+
+ExecStart=/usr/bin/podman-compose up -d
+ExecStop=/usr/bin/podman-compose down
+
+# Give the build/pull time on first start
+TimeoutStartSec=600
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

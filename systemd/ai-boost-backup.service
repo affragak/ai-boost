@@ -1,0 +1,13 @@
+[Unit]
+Description=ai-boost daily backup
+Documentation=https://github.com/affragak/ai-boost
+Requires=ai-boost.service
+After=ai-boost.service
+
+[Service]
+Type=oneshot
+
+# Substituted with the real repo path by `make install-systemd`
+WorkingDirectory=REPO_PATH
+
+ExecStart=/usr/bin/make backup

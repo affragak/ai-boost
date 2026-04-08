@@ -4,7 +4,8 @@ CONTAINER := ai-boost
 
 .PHONY: help up down build rebuild logs shell status \
         pull-models healthcheck backup \
-        fix-model-access create-user
+        fix-model-access create-user \
+        install-systemd uninstall-systemd
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -80,3 +81,41 @@ create-user: ## Create a new Open WebUI user (NAME, EMAIL, PASSWORD required)
 
 backup: ## Backup Open WebUI data and Cloudflare credentials
 	podman exec -it $(CONTAINER) backup
+
+# ── Systemd integration ───────────────────────────────────────────────────────
+
+install-systemd: ## Install systemd user service + daily backup timer (run with env vars set)
+	@test -n "$(WEBUI_SECRET_KEY)"       || (echo "ERROR: WEBUI_SECRET_KEY is not set"       && exit 1)
+	@test -n "$(CLOUDFLARED_TUNNEL_ID)"  || (echo "ERROR: CLOUDFLARED_TUNNEL_ID is not set"  && exit 1)
+	@echo "Writing environment file to ~/.config/ai-boost/env ..."
+	@mkdir -p $(HOME)/.config/ai-boost
+	@printf 'WEBUI_SECRET_KEY=%s\nCLOUDFLARED_TUNNEL_ID=%s\nANTHROPIC_API_KEY=%s\nMISE_GITHUB_TOKEN=%s\n' \
+		"$(WEBUI_SECRET_KEY)" \
+		"$(CLOUDFLARED_TUNNEL_ID)" \
+		"$(ANTHROPIC_API_KEY)" \
+		"$(MISE_GITHUB_TOKEN)" \
+		> $(HOME)/.config/ai-boost/env
+	@chmod 600 $(HOME)/.config/ai-boost/env
+	@echo "Installing systemd unit files ..."
+	@mkdir -p $(HOME)/.config/systemd/user
+	@sed 's|REPO_PATH|$(CURDIR)|g' systemd/ai-boost.service \
+		> $(HOME)/.config/systemd/user/ai-boost.service
+	@sed 's|REPO_PATH|$(CURDIR)|g' systemd/ai-boost-backup.service \
+		> $(HOME)/.config/systemd/user/ai-boost-backup.service
+	@cp systemd/ai-boost-backup.timer $(HOME)/.config/systemd/user/ai-boost-backup.timer
+	@systemctl --user daemon-reload
+	@systemctl --user enable --now ai-boost.service
+	@systemctl --user enable --now ai-boost-backup.timer
+	@loginctl enable-linger $(USER)
+	@echo ""
+	@echo "Done. Container will now start automatically on boot."
+	@echo "Run 'systemctl --user status ai-boost' to verify."
+
+uninstall-systemd: ## Remove systemd user service and backup timer
+	@systemctl --user disable --now ai-boost.service       2>/dev/null || true
+	@systemctl --user disable --now ai-boost-backup.timer  2>/dev/null || true
+	@rm -f $(HOME)/.config/systemd/user/ai-boost.service
+	@rm -f $(HOME)/.config/systemd/user/ai-boost-backup.service
+	@rm -f $(HOME)/.config/systemd/user/ai-boost-backup.timer
+	@systemctl --user daemon-reload
+	@echo "Systemd units removed."

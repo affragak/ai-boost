@@ -269,6 +269,45 @@ The container entrypoint (PID 1 before supervisord takes over). Chowns all three
 
 ---
 
+## Auto-start on Boot
+
+A systemd user service is included so the container starts automatically when your machine boots — no need to run `make up` manually.
+
+### Install
+
+Make sure your environment variables are exported in the current shell, then:
+
+```bash
+make install-systemd
+```
+
+This will:
+1. Write `~/.config/ai-boost/env` with your current env vars (mode `600` — readable only by you)
+2. Install three unit files to `~/.config/systemd/user/`:
+   - `ai-boost.service` — starts/stops the container
+   - `ai-boost-backup.service` — runs the backup script
+   - `ai-boost-backup.timer` — triggers the backup daily at 03:00
+3. Enable and start both units immediately
+4. Run `loginctl enable-linger` so user services survive logout
+
+### Verify
+
+```bash
+systemctl --user status ai-boost
+systemctl --user status ai-boost-backup.timer
+systemctl --user list-timers
+```
+
+### Uninstall
+
+```bash
+make uninstall-systemd
+```
+
+> **Updating secrets:** if you rotate `WEBUI_SECRET_KEY` or any other env var, re-run `make install-systemd` to update `~/.config/ai-boost/env`, then `systemctl --user restart ai-boost`.
+
+---
+
 ## Common Operations
 
 ```bash

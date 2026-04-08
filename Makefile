@@ -4,7 +4,7 @@ CONTAINER := ai-boost
 
 .PHONY: help up down build rebuild logs shell status \
         pull-models healthcheck backup \
-        fix-model-access create-user \
+        fix-model-access create-user list-users update \
         install-systemd uninstall-systemd
 
 help: ## Show this help message
@@ -81,6 +81,17 @@ create-user: ## Create a new Open WebUI user (NAME, EMAIL, PASSWORD required)
 
 backup: ## Backup Open WebUI data and Cloudflare credentials
 	podman exec -it $(CONTAINER) backup
+
+list-users: ## List all Open WebUI users and their roles
+	@test -n "$(OPENWEBUI_ADMIN_EMAIL)"    || (echo "ERROR: OPENWEBUI_ADMIN_EMAIL is not set"    && exit 1)
+	@test -n "$(OPENWEBUI_ADMIN_PASSWORD)" || (echo "ERROR: OPENWEBUI_ADMIN_PASSWORD is not set" && exit 1)
+	podman exec \
+		-e OPENWEBUI_ADMIN_EMAIL="$(OPENWEBUI_ADMIN_EMAIL)" \
+		-e OPENWEBUI_ADMIN_PASSWORD="$(OPENWEBUI_ADMIN_PASSWORD)" \
+		$(CONTAINER) list-users
+
+update: ## Check pinned versions against latest upstream releases
+	@bash scripts/update
 
 # ── Systemd integration ───────────────────────────────────────────────────────
 

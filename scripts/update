@@ -1,0 +1,83 @@
+#!/bin/bash
+set -e
+
+# Checks the currently pinned versions in the Containerfile against the latest
+# available upstream releases and prints a comparison table.
+#
+# Run from the repository root:
+#   ./scripts/update
+#   # or:
+#   make update
+
+CONTAINERFILE="${1:-Containerfile}"
+
+if [[ ! -f "$CONTAINERFILE" ]]; then
+  echo "Error: $CONTAINERFILE not found. Run this script from the repo root." >&2
+  exit 1
+fi
+
+# ── Read pinned versions from Containerfile ───────────────────────────────────
+
+pinned_ollama=$(grep -oP '(?<=ARG OLLAMA_VERSION=)\S+' "$CONTAINERFILE")
+pinned_webui=$(grep -oP '(?<=open-webui==)\S+' "$CONTAINERFILE")
+pinned_uv=$(grep -oP '(?<=astral-sh/uv:)[^/ ]+' "$CONTAINERFILE")
+pinned_cuda=$(grep -oP '(?<=nvidia/cuda:)\S+' "$CONTAINERFILE" | head -1)
+
+# ── Fetch latest versions from upstream ──────────────────────────────────────
+
+fetch_github_latest() {
+  local repo="$1"
+  curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))"
+}
+
+fetch_pypi_latest() {
+  local pkg="$1"
+  curl -fsSL "https://pypi.org/pypi/${pkg}/json" \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['info']['version'])"
+}
+
+echo ""
+echo "Fetching latest versions..."
+
+latest_ollama=$(fetch_github_latest "ollama/ollama")
+latest_webui=$(fetch_pypi_latest "open-webui")
+latest_uv=$(fetch_github_latest "astral-sh/uv")
+
+# ── Compare and print ─────────────────────────────────────────────────────────
+
+needs_bump=0
+
+print_row() {
+  local component="$1"
+  local pinned="$2"
+  local latest="$3"
+  local where="$4"
+
+  if [[ "$pinned" == "$latest" ]]; then
+    status="✅  up to date"
+  else
+    status="⬆️   UPDATE AVAILABLE"
+    needs_bump=1
+  fi
+
+  printf "  %-18s  %-12s  %-12s  %s\n" "$component" "$pinned" "$latest" "$status"
+}
+
+echo ""
+echo "  Component           Pinned        Latest        Status"
+echo "  ──────────────────  ────────────  ────────────  ──────────────────"
+print_row "open-webui"    "$pinned_webui"   "$latest_webui"   "Containerfile"
+print_row "ollama"        "$pinned_ollama"  "$latest_ollama"  "Containerfile"
+print_row "uv"            "$pinned_uv"      "$latest_uv"      "Containerfile"
+printf "  %-18s  %-12s  %-12s  %s\n" \
+  "cuda base" "$pinned_cuda" "(manual)" "check https://hub.docker.com/r/nvidia/cuda/tags"
+echo ""
+
+if [[ "$needs_bump" -eq 0 ]]; then
+  echo "  All components are up to date."
+else
+  echo "  To update a component, edit the pinned version in Containerfile"
+  echo "  then run: make rebuild"
+fi
+echo ""

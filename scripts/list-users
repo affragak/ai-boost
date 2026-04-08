@@ -1,0 +1,88 @@
+#!/bin/bash
+set -e
+
+# Lists all Open WebUI users with their name, email, role, and sign-up date.
+#
+# Usage:
+#   OPENWEBUI_ADMIN_EMAIL=admin@example.com \
+#   OPENWEBUI_ADMIN_PASSWORD=secret \
+#   list-users
+
+OPENWEBUI_URL="http://localhost:8080"
+
+if [[ -z "$OPENWEBUI_ADMIN_EMAIL" || -z "$OPENWEBUI_ADMIN_PASSWORD" ]]; then
+  echo "Usage: OPENWEBUI_ADMIN_EMAIL=<email> OPENWEBUI_ADMIN_PASSWORD=<password> list-users" >&2
+  exit 1
+fi
+
+export _LU_EMAIL="$OPENWEBUI_ADMIN_EMAIL"
+export _LU_PASSWORD="$OPENWEBUI_ADMIN_PASSWORD"
+export _LU_URL="$OPENWEBUI_URL"
+
+python3 - <<'PYEOF'
+import json, os, sys, urllib.request, urllib.error
+from datetime import datetime, timezone
+
+url      = os.environ["_LU_URL"]
+email    = os.environ["_LU_EMAIL"]
+password = os.environ["_LU_PASSWORD"]
+
+def request(method, path, data=None, token=None):
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(
+        f"{url}{path}", method=method,
+        data=json.dumps(data).encode() if data else None,
+        headers=headers,
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        print(f"HTTP {e.code}: {e.read().decode()[:200]}", file=sys.stderr)
+        return None
+
+auth = request("POST", "/api/v1/auths/signin", {"email": email, "password": password})
+if not auth or not auth.get("token"):
+    print("Error: authentication failed. Check OPENWEBUI_ADMIN_EMAIL / OPENWEBUI_ADMIN_PASSWORD.", file=sys.stderr)
+    sys.exit(1)
+token = auth["token"]
+
+users = request("GET", "/api/v1/users/", token=token)
+if users is None:
+    print("Error: failed to fetch users.", file=sys.stderr)
+    sys.exit(1)
+
+if not users:
+    print("No users found.")
+    sys.exit(0)
+
+# Sort: admins first, then by name
+role_order = {"admin": 0, "user": 1, "pending": 2}
+users.sort(key=lambda u: (role_order.get(u.get("role", "user"), 9), u.get("name", "").lower()))
+
+# Column widths
+col_name  = max(len("Name"),  max(len(u.get("name",  "") or "") for u in users))
+col_email = max(len("Email"), max(len(u.get("email", "") or "") for u in users))
+col_role  = max(len("Role"),  max(len(u.get("role",  "") or "") for u in users))
+
+sep = f"  {'─' * col_name}  {'─' * col_email}  {'─' * col_role}  {'─' * 10}"
+hdr = f"  {'Name':<{col_name}}  {'Email':<{col_email}}  {'Role':<{col_role}}  {'Created'}"
+
+print(f"\n  {len(users)} user(s)\n")
+print(hdr)
+print(sep)
+for u in users:
+    name  = (u.get("name")  or "")[:col_name]
+    em    = (u.get("email") or "")[:col_email]
+    role  = (u.get("role")  or "")
+    ts    = u.get("created_at") or u.get("created") or 0
+    try:
+        created = datetime.fromtimestamp(int(ts), tz=timezone.utc).strftime("%Y-%m-%d")
+    except Exception:
+        created = "—"
+    role_display = {"admin": "admin ★", "user": "user", "pending": "pending ⚠"}.get(role, role)
+    print(f"  {name:<{col_name}}  {em:<{col_email}}  {role_display:<{col_role}}  {created}")
+print()
+PYEOF

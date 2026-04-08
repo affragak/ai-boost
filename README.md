@@ -264,6 +264,53 @@ podman cp ~/backups/ai-boost-backup-<timestamp>.tar.gz ai-boost:/tmp/
 podman exec -it ai-boost tar -xzf /tmp/ai-boost-backup-<timestamp>.tar.gz -C /
 ```
 
+### `list-users`
+Lists every Open WebUI user with their name, email, role, and sign-up date. Admins are shown first and marked with ★; pending accounts are flagged with ⚠.
+
+```bash
+podman exec \
+  -e OPENWEBUI_ADMIN_EMAIL=admin@example.com \
+  -e OPENWEBUI_ADMIN_PASSWORD=yourpassword \
+  ai-boost list-users
+
+# or via make:
+OPENWEBUI_ADMIN_EMAIL=admin@example.com \
+OPENWEBUI_ADMIN_PASSWORD=yourpassword \
+make list-users
+```
+
+Example output:
+```
+  3 user(s)
+
+  Name       Email                     Role      Created
+  ─────────  ────────────────────────  ────────  ──────────
+  Antonis    antonis@example.com       admin ★   2025-01-01
+  Alice      alice@example.com         user      2025-03-15
+  Bob        bob@example.com           pending ⚠ 2025-04-01
+```
+
+### `update`
+Checks the pinned versions in the `Containerfile` against the latest releases on PyPI and GitHub and prints a comparison table. Run this from the **host** (not inside the container) whenever you want to know if anything needs bumping.
+
+```bash
+make update
+# or directly:
+./scripts/update
+```
+
+Example output:
+```
+  Component           Pinned        Latest        Status
+  ──────────────────  ────────────  ────────────  ──────────────────
+  open-webui          0.8.12        0.8.12        ✅  up to date
+  ollama              0.20.3        0.20.4        ⬆️   UPDATE AVAILABLE
+  uv                  0.11.4        0.11.4        ✅  up to date
+  cuda base           12.8.0-...    (manual)      check Docker Hub
+```
+
+When an update is available, edit the pinned version in `Containerfile` then run `make rebuild`. The CUDA base image is not checked automatically — check [Docker Hub](https://hub.docker.com/r/nvidia/cuda/tags) manually.
+
 ### `entrypoint.sh`
 The container entrypoint (PID 1 before supervisord takes over). Chowns all three bind-mounted directories to `ubuntu:ubuntu` on every start, then hands off to supervisord via `exec sudo` with secrets forwarded explicitly as `VAR=value` arguments to bypass sudo's `env_reset`.
 

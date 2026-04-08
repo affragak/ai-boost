@@ -50,6 +50,9 @@ RUN chmod +x /usr/local/bin/healthcheck
 COPY scripts/backup /usr/local/bin/backup
 RUN chmod +x /usr/local/bin/backup
 
+COPY scripts/list-users /usr/local/bin/list-users
+RUN chmod +x /usr/local/bin/list-users
+
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

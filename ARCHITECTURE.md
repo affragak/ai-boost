@@ -247,6 +247,9 @@ mise shims are prepended to `PATH` so `node`, `python`, `uv`, `gh` resolve to th
 
 ## CI/CD
 
+### Branch Protection (`main`)
+Force pushes and branch deletion are blocked via GitHub branch protection rules. Direct commits to `main` are allowed (no PR requirement for solo use). If you need to amend a commit that has already been pushed, use `git revert` rather than `git push --force`.
+
 ### Lint (`.github/workflows/lint.yml`)
 Runs [hadolint](https://github.com/hadolint/hadolint) on the `Containerfile` on every push and pull request that touches `Containerfile` or the workflow file itself. Catches common Dockerfile mistakes (missing `--no-install-recommends`, unset pipefail, etc.). Several rules are intentionally ignored — see the workflow for comments explaining each.
 

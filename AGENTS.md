@@ -171,4 +171,4 @@ make rebuild             # or: podman-compose up --build -d
 - Do not install Python packages with bare `pip` — use `uv`.
 - Do not store secrets or credentials in any tracked file.
 - Do not change bind-mount paths without also running `podman unshare chown` on the host.
-- Do not remove `selinux: z` from bind mounts.
+- Do not force-push to `main` — branch protection blocks it; use `git revert` to undo a pushed commit.

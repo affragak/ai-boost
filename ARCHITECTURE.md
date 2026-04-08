@@ -41,6 +41,16 @@ Priority ordering ensures Ollama is ready before Open WebUI starts (Open WebUI c
 - Model files stored in `~/.ollama` (bind-mounted from host)
 - Use `pull-models` script inside the container to pre-pull models
 
+**Default models** (defined in `scripts/pull-models`):
+
+| Model | Size | Purpose |
+|-------|------|---------|
+| `llama3.1:8b` | ~5 GB | General-purpose chat |
+| `qwen2.5:7b` | ~5 GB | General-purpose chat |
+| `deepseek-coder-v2:16b-lite-instruct-q4_K_M` | ~9 GB | Code generation / assistance |
+| `mistral-nemo` | ~7 GB | General-purpose chat |
+| `nomic-embed-text` | ~274 MB | RAG embeddings (required by Open WebUI) |
+
 ### Open WebUI
 - Full-featured chat interface at `http://localhost:8080`
 - Connects to Ollama at `http://127.0.0.1:11434` (loopback, both in same container)

@@ -71,6 +71,16 @@ podman exec -it ai-boost pull-models
 
 The `pull-models` script pulls any models listed in it, skipping ones already downloaded.
 
+| Model | Size | Purpose |
+|-------|------|---------|
+| `llama3.1:8b` | ~5 GB | General-purpose chat |
+| `qwen2.5:7b` | ~5 GB | General-purpose chat |
+| `deepseek-coder-v2:16b-lite-instruct-q4_K_M` | ~9 GB | Code generation / assistance |
+| `mistral-nemo` | ~7 GB | General-purpose chat |
+| `nomic-embed-text` | ~274 MB | RAG embeddings (required by Open WebUI) |
+
+To add or remove models, edit the `MODELS` array in `scripts/pull-models`.
+
 ---
 
 ## Common Operations

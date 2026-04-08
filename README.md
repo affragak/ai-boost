@@ -351,6 +351,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed breakdown of the image bui
 
 | File | Contents |
 |------|----------|
+| [`notes/reliability.md`](notes/reliability.md) | Log rotation, systemd auto-start, and daily backup timer — what was done and why |
 | [`notes/troubleshooting.md`](notes/troubleshooting.md) | Common failure modes and fixes |
 | [`notes/rotating-webui-secret-key.md`](notes/rotating-webui-secret-key.md) | How to rotate `WEBUI_SECRET_KEY` without data loss |
 | [`notes/open-webui-model-access.md`](notes/open-webui-model-access.md) | Open WebUI 0.8 model access control explained |

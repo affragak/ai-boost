@@ -14,6 +14,12 @@ on:
       - mise.toml
       - .github/workflows/build.yml
 
+# Cancel any in-progress build for the same branch when a new push arrives.
+# Prevents stale builds from overwriting :latest after a newer push completes.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build and push to GHCR

@@ -2,6 +2,7 @@ name: ai
 
 services:
   ai:
+    container_name: ai-boost
     build:
       context: .
       dockerfile: Containerfile

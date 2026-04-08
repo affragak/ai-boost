@@ -64,7 +64,7 @@ All state lives on the host via bind mounts — rebuilding the image never loses
 ## Pulling Models
 
 ```bash
-podman exec -it ai_ai_1 pull-models
+podman exec -it ai-boost pull-models
 ```
 
 The `pull-models` script pulls any models listed in it, skipping ones already downloaded.
@@ -75,14 +75,14 @@ The `pull-models` script pulls any models listed in it, skipping ones already do
 
 ```bash
 # Check service health
-podman exec -it ai_ai_1 sudo supervisorctl status
+podman exec -it ai-boost sudo supervisorctl status
 
 # Shell access
-podman exec -it ai_ai_1 bash
+podman exec -it ai-boost bash
 
 # Tail logs
-podman exec -it ai_ai_1 tail -f /var/log/open-webui.log
-podman exec -it ai_ai_1 tail -f /var/log/ollama.err
+podman exec -it ai-boost tail -f /var/log/open-webui.log
+podman exec -it ai-boost tail -f /var/log/ollama.err
 
 # Stop
 podman-compose down

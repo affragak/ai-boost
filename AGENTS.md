@@ -98,17 +98,17 @@ podman-compose build
 podman-compose up -d
 
 # Check service health inside container
-podman exec -it ai_ai_1 sudo supervisorctl status
+podman exec -it ai-boost sudo supervisorctl status
 
 # Pull LLM models
-podman exec -it ai_ai_1 pull-models
+podman exec -it ai-boost pull-models
 
 # Shell access
-podman exec -it ai_ai_1 zsh
+podman exec -it ai-boost zsh
 
 # Tail logs
-podman exec -it ai_ai_1 tail -f /var/log/open-webui.log
-podman exec -it ai_ai_1 tail -f /var/log/ollama.err
+podman exec -it ai-boost tail -f /var/log/open-webui.log
+podman exec -it ai-boost tail -f /var/log/ollama.err
 
 # Rebuild and restart
 podman-compose up --build -d

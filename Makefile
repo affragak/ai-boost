@@ -96,31 +96,35 @@ update: ## Check pinned versions against latest upstream releases
 # ── Systemd integration ───────────────────────────────────────────────────────
 
 install-systemd: ## Install systemd user service + daily backup timer (run with env vars set)
-	@test -n "$(WEBUI_SECRET_KEY)"       || (echo "ERROR: WEBUI_SECRET_KEY is not set"       && exit 1)
-	@test -n "$(CLOUDFLARED_TUNNEL_ID)"  || (echo "ERROR: CLOUDFLARED_TUNNEL_ID is not set"  && exit 1)
-	@echo "Writing environment file to ~/.config/ai-boost/env ..."
-	@mkdir -p $(HOME)/.config/ai-boost
-	@printf 'WEBUI_SECRET_KEY=%s\nCLOUDFLARED_TUNNEL_ID=%s\nANTHROPIC_API_KEY=%s\nMISE_GITHUB_TOKEN=%s\n' \
-		"$(WEBUI_SECRET_KEY)" \
-		"$(CLOUDFLARED_TUNNEL_ID)" \
-		"$(ANTHROPIC_API_KEY)" \
-		"$(MISE_GITHUB_TOKEN)" \
-		> $(HOME)/.config/ai-boost/env
-	@chmod 600 $(HOME)/.config/ai-boost/env
-	@echo "Installing systemd unit files ..."
-	@mkdir -p $(HOME)/.config/systemd/user
-	@sed 's|REPO_PATH|$(CURDIR)|g' systemd/ai-boost.service \
-		> $(HOME)/.config/systemd/user/ai-boost.service
-	@sed 's|REPO_PATH|$(CURDIR)|g' systemd/ai-boost-backup.service \
-		> $(HOME)/.config/systemd/user/ai-boost-backup.service
-	@cp systemd/ai-boost-backup.timer $(HOME)/.config/systemd/user/ai-boost-backup.timer
-	@systemctl --user daemon-reload
-	@systemctl --user enable --now ai-boost.service
-	@systemctl --user enable --now ai-boost-backup.timer
-	@loginctl enable-linger $(USER)
-	@echo ""
-	@echo "Done. Container will now start automatically on boot."
-	@echo "Run 'systemctl --user status ai-boost' to verify."
+	@# Source .env if present and vars not already set in environment
+	@if [ -f .env ]; then \
+		export $$(grep -v '^\s*#' .env | grep -v '^\s*$$' | xargs) 2>/dev/null; \
+	fi; \
+	test -n "$$WEBUI_SECRET_KEY"      || (echo "ERROR: WEBUI_SECRET_KEY is not set (set in .env or export it)"      && exit 1); \
+	test -n "$$CLOUDFLARED_TUNNEL_ID" || (echo "ERROR: CLOUDFLARED_TUNNEL_ID is not set (set in .env or export it)" && exit 1); \
+	echo "Writing environment file to ~/.config/ai-boost/env ..."; \
+	mkdir -p $(HOME)/.config/ai-boost; \
+	printf 'WEBUI_SECRET_KEY=%s\nCLOUDFLARED_TUNNEL_ID=%s\nANTHROPIC_API_KEY=%s\nMISE_GITHUB_TOKEN=%s\n' \
+		"$$WEBUI_SECRET_KEY" \
+		"$$CLOUDFLARED_TUNNEL_ID" \
+		"$$ANTHROPIC_API_KEY" \
+		"$$MISE_GITHUB_TOKEN" \
+		> $(HOME)/.config/ai-boost/env; \
+	chmod 600 $(HOME)/.config/ai-boost/env; \
+	echo "Installing systemd unit files ..."; \
+	mkdir -p $(HOME)/.config/systemd/user; \
+	sed 's|REPO_PATH|$(CURDIR)|g' systemd/ai-boost.service \
+		> $(HOME)/.config/systemd/user/ai-boost.service; \
+	sed 's|REPO_PATH|$(CURDIR)|g' systemd/ai-boost-backup.service \
+		> $(HOME)/.config/systemd/user/ai-boost-backup.service; \
+	cp systemd/ai-boost-backup.timer $(HOME)/.config/systemd/user/ai-boost-backup.timer; \
+	systemctl --user daemon-reload; \
+	systemctl --user enable --now ai-boost.service; \
+	systemctl --user enable --now ai-boost-backup.timer; \
+	loginctl enable-linger $(USER); \
+	echo ""; \
+	echo "Done. Container will now start automatically on boot."; \
+	echo "Run 'systemctl --user status ai-boost' to verify."
 
 uninstall-systemd: ## Remove systemd user service and backup timer
 	@systemctl --user disable --now ai-boost.service       2>/dev/null || true

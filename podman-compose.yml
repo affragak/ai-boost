@@ -9,6 +9,11 @@ services:
 
     image: ai
 
+    # Load secrets from .env (copy .env.example → .env and fill in values)
+    env_file:
+      - path: .env
+        required: false   # allow running with exported vars only, no .env needed
+
     # GPU passthrough via CDI (requires nvidia-container-toolkit on host)
     devices:
       - nvidia.com/gpu=all
@@ -24,11 +29,6 @@ services:
       OLLAMA_KEEP_ALIVE: 10m
       OLLAMA_MAX_LOADED_MODELS: 1
       OLLAMA_NUM_PARALLEL: 1
-      # Passed in from your host shell — set these before running:
-      #   export ANTHROPIC_API_KEY=sk-...
-      #   export MISE_GITHUB_TOKEN=ghp_...
-      #   export WEBUI_SECRET_KEY=$(openssl rand -hex 32)
-      #   export CLOUDFLARED_TUNNEL_ID=<your-tunnel-uuid>
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       MISE_GITHUB_TOKEN: ${MISE_GITHUB_TOKEN}
       WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}

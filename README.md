@@ -80,14 +80,25 @@ podman unshare chown -R 1000:1000 ~/.local/share/open-webui
 
 ### Step 4 — Configure environment variables
 
-Set these in your shell (add to `~/.bashrc` or `~/.zshrc` to persist across sessions):
+Copy the example file and fill in your values:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-...           # Claude API key (for Claude Code)
-export MISE_GITHUB_TOKEN=ghp_...          # GitHub token (for mise tool downloads)
-export WEBUI_SECRET_KEY=$(openssl rand -hex 32)  # JWT signing key — generate once, keep it
-export CLOUDFLARED_TUNNEL_ID=<uuid>       # from: cloudflared tunnel list
+cp .env.example .env
 ```
+
+Then edit `.env` in your favourite editor:
+
+```bash
+# Required
+WEBUI_SECRET_KEY=$(openssl rand -hex 32)   # generate once, keep stable
+CLOUDFLARED_TUNNEL_ID=<uuid>               # from: cloudflared tunnel list
+
+# Optional but recommended
+ANTHROPIC_API_KEY=sk-...     # Claude API key (for Claude Code inside the container)
+MISE_GITHUB_TOKEN=ghp_...    # GitHub token (avoids rate-limiting for mise)
+```
+
+`podman-compose` reads `.env` automatically — no `export` needed. The file is git-ignored so your secrets stay off GitHub.
 
 > **Keep `WEBUI_SECRET_KEY` consistent across restarts.** Changing it signs out all users. See [`notes/rotating-webui-secret-key.md`](notes/rotating-webui-secret-key.md) for rotation guidance.
 

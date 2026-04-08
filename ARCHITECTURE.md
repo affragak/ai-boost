@@ -50,7 +50,7 @@ Priority ordering ensures Ollama is ready before Open WebUI starts (Open WebUI c
 ### Cloudflared
 - Exposes Open WebUI publicly via a Cloudflare Tunnel
 - Tunnel identity stored in `~/.cloudflared` (bind-mounted from host)
-- Tunnel ID hardcoded in `supervisord/cloudflared.conf`
+- Tunnel UUID supplied at runtime via `CLOUDFLARED_TUNNEL_ID` env var
 
 ---
 
@@ -113,12 +113,18 @@ Variables passed from the host shell at runtime:
 |----------|---------|
 | `ANTHROPIC_API_KEY` | Claude API access for Claude Code |
 | `MISE_GITHUB_TOKEN` | GitHub token for mise tool downloads |
+| `WEBUI_SECRET_KEY` | JWT signing key for Open WebUI sessions |
+| `CLOUDFLARED_TUNNEL_ID` | UUID of the Cloudflare Tunnel to run |
 
 Set these before running:
 ```bash
 export ANTHROPIC_API_KEY=sk-...
 export MISE_GITHUB_TOKEN=ghp_...
+export WEBUI_SECRET_KEY=$(openssl rand -hex 32)
+export CLOUDFLARED_TUNNEL_ID=<your-tunnel-uuid>
 ```
+
+`WEBUI_SECRET_KEY` and `CLOUDFLARED_TUNNEL_ID` are passed through `sudo` using explicit `VAR=val` assignment in `entrypoint.sh` (bypassing `sudo`'s env_reset), then injected into the respective supervisord program environments via `%(ENV_...)s` interpolation.
 
 Ollama tuning variables (`OLLAMA_KEEP_ALIVE`, `OLLAMA_MAX_LOADED_MODELS`, `OLLAMA_NUM_PARALLEL`) are set in `podman-compose.yml` and override the supervisord-level defaults.
 
@@ -139,7 +145,7 @@ The container runs rootless. Podman maps UIDs as follows:
 podman unshare chown -R 1000:1000 ~/.local/share/open-webui/
 ```
 
-This is a one-time step after creating or copying the data directory. The `.ollama` and `.cloudflared` directories are handled by the entrypoint at every start.
+This is a one-time step after creating or copying the data directory. The `.ollama`, `.cloudflared`, and `.local/share/open-webui` directories are all chowned by the entrypoint on every start.
 
 ---
 
@@ -148,11 +154,11 @@ This is a one-time step after creating or copying the data directory. The `.olla
 ```
 podman-compose up
     └── entrypoint.sh
-            ├── sudo chown -R ubuntu:ubuntu ~/.cloudflared ~/.ollama
-            └── exec sudo supervisord -n -c /etc/supervisor/supervisord.conf
+            ├── sudo chown -R ubuntu:ubuntu ~/.cloudflared ~/.ollama ~/.local/share/open-webui
+            └── exec sudo WEBUI_SECRET_KEY=... CLOUDFLARED_TUNNEL_ID=... supervisord
                     ├── [priority 1] ollama serve
                     ├── [priority 2] open-webui serve --host 0.0.0.0 --port 8080
-                    └── [priority 3] cloudflared tunnel run <tunnel-id>
+                    └── [priority 3] cloudflared tunnel run <CLOUDFLARED_TUNNEL_ID>
 ```
 
 ---
@@ -189,7 +195,7 @@ podman exec -it ai-boost sudo supervisorctl status
 podman exec -it ai-boost pull-models
 
 # Shell access
-podman exec -it ai-boost zsh
+podman exec -it ai-boost bash
 
 # Tail logs
 podman exec -it ai-boost tail -f /var/log/open-webui.log

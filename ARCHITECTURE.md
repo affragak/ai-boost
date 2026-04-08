@@ -233,6 +233,18 @@ mise shims are prepended to `PATH` so `node`, `python`, `uv`, `gh` resolve to th
 
 ---
 
+## Notes & References
+
+Operational notes and technical deep-dives live in the `notes/` directory:
+
+| File | Contents |
+|------|----------|
+| [`notes/troubleshooting.md`](notes/troubleshooting.md) | Common failure modes: missing `WEBUI_SECRET_KEY`, container name conflicts, bind mount permissions, Cloudflared not connecting, models invisible to users, cache issues |
+| [`notes/rotating-webui-secret-key.md`](notes/rotating-webui-secret-key.md) | How to rotate the JWT signing key without losing user data |
+| [`notes/open-webui-model-access.md`](notes/open-webui-model-access.md) | Deep-dive into Open WebUI 0.8 model access control and why explicit grants are required |
+
+---
+
 ## Common Operations
 
 ```bash

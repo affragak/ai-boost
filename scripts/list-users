@@ -54,6 +54,10 @@ if users is None:
     print("Error: failed to fetch users.", file=sys.stderr)
     sys.exit(1)
 
+# API may return a dict with an 'items' or 'users' key in newer versions
+if isinstance(users, dict):
+    users = users.get("users") or users.get("items") or list(users.values())
+
 if not users:
     print("No users found.")
     sys.exit(0)

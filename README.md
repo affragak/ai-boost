@@ -107,7 +107,7 @@ ANTHROPIC_API_KEY=sk-...     # Claude API key (for Claude Code inside the contai
 MISE_GITHUB_TOKEN=ghp_...    # GitHub token (avoids rate-limiting for mise)
 ```
 
-`podman-compose` reads `.env` automatically — no `export` needed. The file is git-ignored so your secrets stay off GitHub.
+`podman-compose` and `make` both read `.env` automatically — no `export` needed before running any `make` target. The file is git-ignored so your secrets stay off GitHub.
 
 > **Keep `WEBUI_SECRET_KEY` consistent across restarts.** Changing it signs out all users. See [`notes/rotating-webui-secret-key.md`](notes/rotating-webui-secret-key.md) for rotation guidance.
 
@@ -391,10 +391,13 @@ make pull            # Pull latest pre-built image from GHCR
 make rebuild         # Stop → build locally → start
 make shell           # Open a bash shell inside the container
 make status          # Show supervisord service status
+make logs            # Tail all service logs combined (Ctrl+C to stop)
 make logs-webui      # Tail Open WebUI logs
 make logs-ollama     # Tail Ollama logs
 make healthcheck     # Full health check (services, APIs, disk)
 make pull-models     # Pull configured Ollama models
+make pull-model MODEL=llama3:8b  # Pull a single model by name
+make model-remove MODEL=llava:7b # Remove an installed model
 make models          # List installed Ollama models
 make backup          # Archive Open WebUI data + Cloudflare credentials
 make help            # List all available targets

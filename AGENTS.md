@@ -100,7 +100,7 @@ When bumping a version, update only that one pin — do not touch unrelated comp
 - Ollama is **priority 1**, Open WebUI **priority 2**, Cloudflared **priority 3**. This ensures Ollama is listening before Open WebUI tries to connect. Respect this ordering when adding new services.
 
 ### Environment variables
-- All secrets live in `.env` (git-ignored). Copy `.env.example` → `.env` and fill in values. `podman-compose` reads `.env` automatically via `env_file`; shell exports take precedence if also set.
+- All secrets live in `.env` (git-ignored). Copy `.env.example` → `.env` and fill in values. Both `podman-compose` and `make` read `.env` automatically — no `export` needed before running any target; shell exports take precedence if also set.
 - `ANTHROPIC_API_KEY` and `MISE_GITHUB_TOKEN` are optional but recommended — they must **never** be hardcoded in any file.
 - `WEBUI_SECRET_KEY` is required — generate with `openssl rand -hex 32`. It is passed through `entrypoint.sh` into supervisord via explicit `sudo VAR=val` assignment and then into open-webui via `%(ENV_WEBUI_SECRET_KEY)s` in `supervisord/open-webui.conf`.
 - `CLOUDFLARED_TUNNEL_ID` is required — referenced in `supervisord/cloudflared.conf` via `%(ENV_CLOUDFLARED_TUNNEL_ID)s`.
@@ -131,12 +131,14 @@ make healthcheck         # full API + disk check
 # Pull LLM models
 make pull-models
 
+# Pull or remove a single model
+make pull-model MODEL=llama3:8b
+make model-remove MODEL=llava:7b
+
 # List installed Ollama models
 make models
 
 # List all Open WebUI users with roles
-OPENWEBUI_ADMIN_EMAIL=admin@example.com \
-OPENWEBUI_ADMIN_PASSWORD=yourpassword \
 make list-users
 
 # Check for version updates (host-side, no container needed)
@@ -146,6 +148,7 @@ make update
 make shell               # or: podman exec -it ai-boost bash
 
 # Tail logs
+make logs                # all services combined
 make logs-webui          # Open WebUI
 make logs-ollama         # Ollama
 

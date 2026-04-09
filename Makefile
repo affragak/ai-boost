@@ -1,14 +1,22 @@
 CONTAINER := ai-boost
 
+# Load .env automatically if present — no need to source it manually.
+# Shell-exported vars take precedence over .env values.
+# Note: values containing $ must be escaped as $$ in .env for Make compatibility.
+ifneq (,$(wildcard .env))
+  -include .env
+  export
+endif
+
 .DEFAULT_GOAL := help
 
-.PHONY: help up down build rebuild pull logs shell status \
-        pull-models models healthcheck backup \
+.PHONY: help up down build rebuild pull logs logs-webui logs-ollama logs-cloudflared shell status \
+        pull-models pull-model model-remove models healthcheck backup \
         fix-model-access create-user list-users update \
         install-systemd uninstall-systemd
 
 help: ## Show this help message
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(firstword $(MAKEFILE_LIST)) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # ── Container lifecycle ────────────────────────────────────────────────────────
@@ -34,6 +42,12 @@ rebuild: ## Stop, rebuild image locally, and start (full cycle)
 status: ## Show supervisord service status inside the container
 	podman exec -it $(CONTAINER) sudo supervisorctl status
 
+logs: ## Tail all service logs combined (Ctrl+C to stop)
+	podman exec -it $(CONTAINER) tail -f \
+		/var/log/ollama.err \
+		/var/log/open-webui.log \
+		/var/log/cloudflared.log
+
 logs-webui: ## Tail Open WebUI logs
 	podman exec -it $(CONTAINER) tail -f /var/log/open-webui.log
 
@@ -53,6 +67,16 @@ healthcheck: ## Run the full health check script
 
 pull-models: ## Pull configured Ollama models
 	podman exec -it $(CONTAINER) pull-models
+
+# Usage: make pull-model MODEL=llama3:8b
+pull-model: ## Pull a single Ollama model (MODEL=name:tag required)
+	@test -n "$(MODEL)" || (echo "ERROR: MODEL is not set  e.g. make pull-model MODEL=llama3:8b" && exit 1)
+	podman exec -it $(CONTAINER) ollama pull $(MODEL)
+
+# Usage: make model-remove MODEL=llava:7b
+model-remove: ## Remove an installed Ollama model (MODEL=name:tag required)
+	@test -n "$(MODEL)" || (echo "ERROR: MODEL is not set  e.g. make model-remove MODEL=llava:7b" && exit 1)
+	podman exec -it $(CONTAINER) ollama rm $(MODEL)
 
 models: ## List installed Ollama models
 	podman exec -it $(CONTAINER) ollama list

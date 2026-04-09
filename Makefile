@@ -3,7 +3,7 @@ CONTAINER := ai-boost
 .DEFAULT_GOAL := help
 
 .PHONY: help up down build rebuild pull logs shell status \
-        pull-models healthcheck backup \
+        pull-models models healthcheck backup \
         fix-model-access create-user list-users update \
         install-systemd uninstall-systemd
 
@@ -53,6 +53,9 @@ healthcheck: ## Run the full health check script
 
 pull-models: ## Pull configured Ollama models
 	podman exec -it $(CONTAINER) pull-models
+
+models: ## List installed Ollama models
+	podman exec -it $(CONTAINER) ollama list
 
 fix-model-access: ## Grant all users read access to all models
 	@test -n "$(OPENWEBUI_ADMIN_EMAIL)"    || (echo "ERROR: OPENWEBUI_ADMIN_EMAIL is not set"    && exit 1)

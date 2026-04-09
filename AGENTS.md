@@ -131,6 +131,9 @@ make healthcheck         # full API + disk check
 # Pull LLM models
 make pull-models
 
+# List installed Ollama models
+make models
+
 # List all Open WebUI users with roles
 OPENWEBUI_ADMIN_EMAIL=admin@example.com \
 OPENWEBUI_ADMIN_PASSWORD=yourpassword \

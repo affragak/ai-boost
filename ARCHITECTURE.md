@@ -310,6 +310,9 @@ make status
 # Pull LLM models (+ auto-sync access grants if admin vars set)
 make pull-models
 
+# List installed Ollama models
+make models
+
 # Create a new Open WebUI user
 podman exec -it ai-boost create-user \
   --admin-email admin@example.com --admin-password yourpassword \

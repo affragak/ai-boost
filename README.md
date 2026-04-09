@@ -395,6 +395,7 @@ make logs-webui      # Tail Open WebUI logs
 make logs-ollama     # Tail Ollama logs
 make healthcheck     # Full health check (services, APIs, disk)
 make pull-models     # Pull configured Ollama models
+make models          # List installed Ollama models
 make backup          # Archive Open WebUI data + Cloudflare credentials
 make help            # List all available targets
 ```
